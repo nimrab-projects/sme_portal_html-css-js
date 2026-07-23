@@ -1,0 +1,84 @@
+/* Small hand-written supplement to the compiled Tailwind utilities — covers
+   scroll-reveal animation and hover micro-interactions that in the React app
+   were driven by per-item React state (hoveredRole/hoveredFeature/etc.) but
+   translate 1:1 to plain CSS :hover here since they're purely visual. */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* GradientBox wrapper: --gb-a1/--gb-a2 set inline per accent color */
+.gradient-box {
+  border-radius: 1rem;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--gb-a1), var(--gb-a2));
+  transition: background 0.25s;
+  height: 100%;
+}
+.gradient-box:hover {
+  background: linear-gradient(135deg, var(--gb-a1-hover), var(--gb-a2-hover));
+}
+
+/* Feature / core-function / announcement cards */
+.hover-card {
+  background: #FAFBFB;
+  box-shadow: none;
+  transform: none;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.hover-card:hover {
+  background: #fff;
+  box-shadow: 0 12px 36px -4px var(--hover-shadow, rgba(0,0,0,0.12));
+  transform: translateY(-3px);
+}
+.hover-card-lift:hover {
+  transform: translateY(-4px);
+}
+
+/* Role selection cards on Intro */
+.role-card {
+  background: #FAFBFC;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.05);
+  transform: none;
+  transition: background 0.3s, box-shadow 0.3s, transform 0.3s;
+}
+.role-card:hover {
+  background: #fff;
+  transform: translateY(-5px);
+  box-shadow: var(--role-hover-shadow);
+}
+.role-card .role-topbar { opacity: 0.35; transition: opacity 0.3s; }
+.role-card:hover .role-topbar { opacity: 1; }
+.role-card .role-icon-wrap { background: #F0F2F0; border: 1.5px solid #E8ECEB; transition: background 0.3s, border-color 0.3s; }
+.role-card:hover .role-icon-wrap { background: var(--role-accent-dim); border-color: var(--role-border); }
+.role-card .role-footer-border { border-top: 1.5px solid #EAEEEC; transition: border-color 0.3s; }
+.role-card:hover .role-footer-border { border-color: var(--role-border); }
+.role-card .role-arrow-wrap { background: #F0F2F0; border: 1.5px solid #E0E5E3; transition: background 0.3s, border-color 0.3s; }
+.role-card:hover .role-arrow-wrap { background: var(--role-accent); border-color: transparent; }
+.role-card .role-arrow-icon { color: #6B7280; transition: color 0.3s; }
+.role-card:hover .role-arrow-icon { color: #fff; }
+
+/* FAQ item */
+.faq-item { border: 1.5px solid #E5E7EB; background: #FFFFFF; transition: border-color 0.2s, background 0.2s; }
+.faq-item.open { border-color: rgba(0,104,56,0.31); background: #EAF6EF; }
+
+/* Simple fixed-overlay modal helper used across many pages */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.img-fallback { object-fit: contain; padding: 8px; background: #EEEEEE; }

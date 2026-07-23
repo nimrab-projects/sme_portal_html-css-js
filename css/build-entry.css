@@ -1,0 +1,8 @@
+/* Build-only entry point for the Tailwind CLI (see package.json's build:css).
+   Not linked directly from index.html — its compiled output is
+   css/tailwind.generated.css, which IS linked from index.html. */
+@import 'tailwindcss' source(none);
+@source '../index.html';
+@source '../js/**/*.js';
+@import 'tw-animate-css';
+@import './theme.css';

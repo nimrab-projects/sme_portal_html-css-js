@@ -1,0 +1,14 @@
+{
+  "name": "sme-portal-static-build",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Dev-only tooling to (re)generate css/tailwind.generated.css. Not required to run the site — the shipped static site needs only a static file server.",
+  "scripts": {
+    "build:css": "tailwindcss -i css/build-entry.css -o css/tailwind.generated.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.12",
+    "tailwindcss": "^4.1.12",
+    "tw-animate-css": "^1.3.8"
+  }
+}
