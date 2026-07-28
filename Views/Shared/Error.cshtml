@@ -1,0 +1,23 @@
+@model System.Web.Mvc.HandleErrorInfo
+@{
+    Layout = null;
+}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Error — SME Financing Digital Portal</title>
+    <style>
+      body { font-family: sans-serif; background: #f9fafb; color: #111827; padding: 48px; }
+      h1 { color: #DC2626; }
+    </style>
+  </head>
+  <body>
+    <h1>Something went wrong</h1>
+    <p>An unexpected error occurred while processing your request. Please try again.</p>
+    @if (HttpContext.Current.IsDebuggingEnabled && Model != null && Model.Exception != null)
+    {
+        <pre style="white-space:pre-wrap;background:#111827;color:#f9fafb;padding:16px;border-radius:8px;">@Model.Exception.ToString()</pre>
+    }
+  </body>
+</html>

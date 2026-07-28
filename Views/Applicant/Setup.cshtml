@@ -1,0 +1,27 @@
+@model SmePortal.Web.ViewModels.SaveBusinessRequestViewModel
+@{
+    ViewBag.Title = "Business Setup";
+}
+@* Business Setup page: 1:1 port of the original index.html#/sme/setup + js/pages/sme/
+   businessSetup.js. As with the other converted pages, the whole UI (all fields, the
+   conditional shareholder/partner section, bank details, success overlay) is entirely
+   JS-rendered by businessSetup.js, unchanged - preserving it exactly is what keeps this page
+   pixel- and behavior-identical to the original.
+
+   businessSetup.js POSTs JSON directly to Controllers/BusinessController.cs's Save action
+   (via js/api.js's saveBusiness()) - that JSON path is the actual, live save implementation.
+   ApplicantController's POST /Applicant/Setup action (below) calls the same shared
+   IBusinessService used by BusinessController.Save, so there's a real, working classic
+   form-post entry point too, without any duplicated business logic - it just isn't the one
+   the current JS-driven UI happens to submit through. *@
+@using (Html.BeginForm("Setup", "Applicant", FormMethod.Post, new { style = "display:none;", id = "classic-setup-antiforgery" }))
+{
+    @Html.AntiForgeryToken()
+}
+@if (ViewBag.SaveError != null)
+{
+    <p style="display:none;" data-server-error>@ViewBag.SaveError</p>
+}
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/setup.js")"></script>
+}

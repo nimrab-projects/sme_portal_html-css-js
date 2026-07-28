@@ -1,0 +1,29 @@
+@model SmePortal.Web.ViewModels.SubmitApplicationRequestViewModel
+@{
+    ViewBag.Title = "New Financing Application";
+}
+@* SME Finance Application - Create (Phase 7): 1:1 port of the original index.html#/sme/apply +
+   js/pages/sme/newApplication.js, exactly like Views/Applicant/Setup.cshtml is for the Setup
+   page. The whole 3-step wizard (Financing/Documents/Review, the undertaking modal) is entirely
+   JS-rendered inside the persistent Dashboard shell (js/pages/sme/layout.js) - this bootstrap
+   just mounts that shell with the router defaulted straight to #/sme/apply instead of #/sme, so
+   this page is a real, dedicated URL into the exact same unmodified wizard.
+
+   newApplication.js's "Agree & Submit" button POSTs JSON directly to Controllers/
+   ApplicationController.cs's Save action (via js/api.js's submitApplication()) - that JSON path
+   is the actual, live submission implementation. ApplicationController's POST /Application/Create
+   action (below) calls the same shared IApplicationService.SubmitApplicationAsync, so there's a
+   real, working classic form-post entry point too, without any duplicated business logic - it
+   just isn't the one the current JS-driven wizard happens to submit through (that wizard has no
+   classic-form equivalent for its multi-step client state, only for the core required fields). *@
+@using (Html.BeginForm("Create", "Application", FormMethod.Post, new { style = "display:none;", id = "classic-apply-antiforgery" }))
+{
+    @Html.AntiForgeryToken()
+}
+@if (ViewBag.SaveError != null)
+{
+    <p style="display:none;" data-server-error>@ViewBag.SaveError</p>
+}
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/applicationCreate.js")"></script>
+}

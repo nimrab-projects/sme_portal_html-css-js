@@ -1,0 +1,11 @@
+@{
+    ViewBag.Title = "Edit Business Profile";
+}
+@* Business Profile - Edit (Phase 10). Reuses js/pages/sme/businessSetup.js in its "edit" mode
+   (see smeAppRoutes.js) rather than a second, near-duplicate form module - same fields, same
+   validation, same visual style as the original Business Setup page, just loading the existing
+   business first and updating it in place (POST /api/business/update) instead of creating a
+   new one. *@
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/businessProfileEdit.js")"></script>
+}

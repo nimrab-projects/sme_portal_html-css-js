@@ -1,0 +1,16 @@
+@{
+    ViewBag.Title = "Application Details";
+}
+@* SME Finance Application - Details (Phase 8): a dedicated URL into a NEW page,
+   js/pages/sme/applicationDetails.js, mounted inside the persistent Dashboard shell like every
+   other sme/* page - no existing "Application Details" page exists anywhere in this frontend
+   (confirmed: no such component in the original design either), so this is genuinely new
+   content. It's built entirely from the same visual primitives already used everywhere else in
+   this codebase (colors.js's C tokens, utils.js's icon()/escapeHtml(), the same
+   "rounded-2xl border" card pattern used in dashboard.js/myApplications.js) - not a redesign,
+   just new content in the existing design language. The {id} in the URL is read client-side
+   from window.location.pathname (see Scripts/js/bootstrap/applicationDetails.js) - no inline
+   script is used to pass it, since this app's CSP has no 'unsafe-inline'. *@
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/applicationDetails.js")"></script>
+}

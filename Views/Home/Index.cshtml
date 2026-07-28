@@ -1,0 +1,11 @@
+@{
+    ViewBag.Title = "Home";
+}
+@* Landing page: 1:1 port of the original static index.html + js/pages/intro.js.
+   The shared shell (css links, #app/#modal-root, vendor scripts) lives in
+   Views/Shared/_Layout.cshtml; this view only bootstraps the page-specific render().
+   Bootstrap must be an external module file, not an inline <script> - the app's CSP is
+   script-src 'self' with no 'unsafe-inline', which silently blocks inline module scripts. *@
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/home.js")"></script>
+}

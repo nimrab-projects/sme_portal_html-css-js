@@ -1,0 +1,12 @@
+@{
+    ViewBag.Title = "My Applications";
+}
+@* SME Finance Application - My Applications (Phase 8's canonical GET /Application; renamed
+   from Phase 7's MyApplications.cshtml - same view, same bootstrap script, just the route the
+   spec now names). A dedicated URL into the existing, unmodified My Applications view
+   (js/pages/sme/myApplications.js) at #/sme/applications inside the persistent Dashboard shell.
+   No new UI, no server-rendered list - the JS wizard already fetches real applications via
+   api/applications/mine at boot (js/api.js's bootstrapSession()). *@
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/myApplicationsList.js")"></script>
+}

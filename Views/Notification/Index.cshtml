@@ -1,0 +1,9 @@
+@{
+    ViewBag.Title = "Notifications";
+}
+@* Notification Center (Phase 11) - same "thin bootstrap shell" pattern as every other real MVC
+   page in this app: the actual UI is entirely JS-rendered (js/pages/sme/notifications.js),
+   mounted inside the persistent Dashboard shell exactly like Profile/Application Details. *@
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/notifications.js")"></script>
+}

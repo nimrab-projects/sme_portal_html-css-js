@@ -1,0 +1,17 @@
+@{
+    ViewBag.Title = "Dashboard";
+}
+@* Applicant Dashboard: 1:1 port of the original index.html#/sme (and its sub-routes
+   #/sme/businesses, #/sme/apply, #/sme/applications, #/sme/tracking, #/sme/offer,
+   #/sme/success) via js/pages/sme/layout.js (persistent sidebar/header shell) plus
+   dashboard.js and its sibling sub-view modules. All markup/CSS/animations/responsive
+   behavior are unchanged - see Scripts/js/bootstrap/dashboard.js for how the shell is
+   bootstrapped and why its internal sub-navigation still uses a hash fragment (that's the
+   existing frontend's own mechanism for this persistent-shell UX, not a redesign).
+
+   Applications/Documents/Notifications remain backed by js/state.js's seed data
+   (SAMPLE_APPS/SAMPLE_NOTIFICATIONS) - consistent with Setup.md's original phase scoping,
+   those are explicitly future-phase backend work, not a bug in this integration. *@
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/dashboard.js")"></script>
+}

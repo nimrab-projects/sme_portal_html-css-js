@@ -1,0 +1,306 @@
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{A1F2E3D4-5B6C-4D7E-8F9A-0B1C2D3E4F5A}</ProjectGuid>
+    <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>SmePortal.Web</RootNamespace>
+    <AssemblyName>SmePortal.Web</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <MvcBuildViews>false</MvcBuildViews>
+    <UseIISExpress>true</UseIISExpress>
+    <IISExpressSSLPort />
+    <IISExpressAnonymousAuthentication />
+    <IISExpressWindowsAuthentication />
+    <IISExpressUseClassicPipelineMode />
+    <UseGlobalApplicationHostFile />
+    <NuGetPackageImportStamp />
+    <Deterministic>true</Deterministic>
+    <LangVersion>7.3</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Web.DynamicData" />
+    <Reference Include="System.Web.Entity" />
+    <Reference Include="System.Web.ApplicationServices" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Web.Services" />
+    <Reference Include="System.EnterpriseServices" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Runtime.Caching" />
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>packages\EntityFramework.6.5.1\lib\net45\EntityFramework.dll</HintPath>
+    </Reference>
+    <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>packages\EntityFramework.6.5.1\lib\net45\EntityFramework.SqlServer.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.AspNet.Identity.Core, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.AspNet.Identity.Core.2.2.3\lib\net45\Microsoft.AspNet.Identity.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.AspNet.Identity.EntityFramework, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.AspNet.Identity.EntityFramework.2.2.3\lib\net45\Microsoft.AspNet.Identity.EntityFramework.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.AspNet.Identity.Owin, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.AspNet.Identity.Owin.2.2.3\lib\net45\Microsoft.AspNet.Identity.Owin.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.Mvc, Version=5.2.9.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.AspNet.Mvc.5.2.9\lib\net45\System.Web.Mvc.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.Razor, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.AspNet.Razor.3.2.9\lib\net45\System.Web.Razor.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.Helpers, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.AspNet.WebPages.3.2.9\lib\net45\System.Web.Helpers.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.WebPages, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.AspNet.WebPages.3.2.9\lib\net45\System.Web.WebPages.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.WebPages.Deployment, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.AspNet.WebPages.3.2.9\lib\net45\System.Web.WebPages.Deployment.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.WebPages.Razor, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.AspNet.WebPages.3.2.9\lib\net45\System.Web.WebPages.Razor.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Owin, Version=4.2.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Owin.4.2.2\lib\net45\Microsoft.Owin.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Owin.Host.SystemWeb, Version=4.2.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Owin.Host.SystemWeb.4.2.2\lib\net45\Microsoft.Owin.Host.SystemWeb.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Owin.Security, Version=4.2.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Owin.Security.4.2.2\lib\net45\Microsoft.Owin.Security.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Owin.Security.Cookies, Version=4.2.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Owin.Security.Cookies.4.2.2\lib\net45\Microsoft.Owin.Security.Cookies.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Owin.Security.OAuth, Version=4.2.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Owin.Security.OAuth.4.2.2\lib\net45\Microsoft.Owin.Security.OAuth.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Owin.Security.Google, Version=4.2.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Owin.Security.Google.4.2.2\lib\net45\Microsoft.Owin.Security.Google.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Web.Infrastructure.1.0.0.0\lib\net40\Microsoft.Web.Infrastructure.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Owin, Version=1.0.0.0, Culture=neutral, PublicKeyToken=f0ebd12fd5e55cc5, processorArchitecture=MSIL">
+      <HintPath>packages\Owin.1.0\lib\net40\Owin.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="App_Start\FilterConfig.cs" />
+    <Compile Include="App_Start\IdentityConfig.cs" />
+    <Compile Include="App_Start\RouteConfig.cs" />
+    <Compile Include="Controllers\AccountController.cs" />
+    <Compile Include="Controllers\ApiControllerBase.cs" />
+    <Compile Include="Controllers\ApplicationController.cs" />
+    <Compile Include="Controllers\ApplicantController.cs" />
+    <Compile Include="Controllers\BusinessController.cs" />
+    <Compile Include="Controllers\DocumentController.cs" />
+    <Compile Include="Controllers\HomeController.cs" />
+    <Compile Include="Controllers\NotificationController.cs" />
+    <Compile Include="Controllers\ProfileController.cs" />
+    <Compile Include="DAL\ApplicationDbContext.cs" />
+    <Compile Include="DAL\Migrations\Configuration.cs" />
+    <Compile Include="Filters\HandleApiExceptionAttribute.cs" />
+    <Compile Include="Filters\NoCacheAttribute.cs" />
+    <Compile Include="Filters\RateLimitAttribute.cs" />
+    <Compile Include="Filters\ValidateAjaxAntiForgeryTokenAttribute.cs" />
+    <Compile Include="Global.asax.cs">
+      <DependentUpon>Global.asax</DependentUpon>
+    </Compile>
+    <Compile Include="Helpers\IpAddressHelper.cs" />
+    <Compile Include="Helpers\JsonNetResult.cs" />
+    <Compile Include="Helpers\ValidationHelper.cs" />
+    <Compile Include="Models\ApplicationRole.cs" />
+    <Compile Include="Models\ApplicationUser.cs" />
+    <Compile Include="Models\ApplicationUserClaim.cs" />
+    <Compile Include="Models\ApplicationUserLogin.cs" />
+    <Compile Include="Models\ApplicationUserRole.cs" />
+    <Compile Include="Models\Application.cs" />
+    <Compile Include="Models\ApplicationDocument.cs" />
+    <Compile Include="Models\ApplicationStatusHistory.cs" />
+    <Compile Include="Models\AuditLog.cs" />
+    <Compile Include="Models\Business.cs" />
+    <Compile Include="Models\EmailOtp.cs" />
+    <Compile Include="Models\Notification.cs" />
+    <Compile Include="Models\Shareholder.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Repositories\ApplicationRepository.cs" />
+    <Compile Include="Repositories\AuditLogRepository.cs" />
+    <Compile Include="Repositories\BusinessRepository.cs" />
+    <Compile Include="Repositories\DocumentRepository.cs" />
+    <Compile Include="Repositories\IApplicationRepository.cs" />
+    <Compile Include="Repositories\IAuditLogRepository.cs" />
+    <Compile Include="Repositories\IBusinessRepository.cs" />
+    <Compile Include="Repositories\IDocumentRepository.cs" />
+    <Compile Include="Repositories\INotificationRepository.cs" />
+    <Compile Include="Repositories\IOtpRepository.cs" />
+    <Compile Include="Repositories\IUserRepository.cs" />
+    <Compile Include="Repositories\NotificationRepository.cs" />
+    <Compile Include="Repositories\OtpRepository.cs" />
+    <Compile Include="Repositories\UserRepository.cs" />
+    <Compile Include="Services\ApplicationService.cs" />
+    <Compile Include="Services\AuditService.cs" />
+    <Compile Include="Services\AuthService.cs" />
+    <Compile Include="Services\BusinessService.cs" />
+    <Compile Include="Services\DocumentService.cs" />
+    <Compile Include="Services\IApplicationService.cs" />
+    <Compile Include="Services\IAuditService.cs" />
+    <Compile Include="Services\IAuthService.cs" />
+    <Compile Include="Services\IBusinessService.cs" />
+    <Compile Include="Services\IDocumentService.cs" />
+    <Compile Include="Services\INotificationService.cs" />
+    <Compile Include="Services\IOtpService.cs" />
+    <Compile Include="Services\IUserService.cs" />
+    <Compile Include="Services\NotificationService.cs" />
+    <Compile Include="Services\OtpService.cs" />
+    <Compile Include="Services\UserService.cs" />
+    <Compile Include="Startup.Auth.cs" />
+    <Compile Include="Startup.cs" />
+    <Compile Include="ViewModels\ApiErrorViewModel.cs" />
+    <Compile Include="ViewModels\ApplicationDetailViewModel.cs" />
+    <Compile Include="ViewModels\ApplicationDocumentViewModel.cs" />
+    <Compile Include="ViewModels\ApplicationResponseViewModel.cs" />
+    <Compile Include="ViewModels\ApplicationStatusHistoryViewModel.cs" />
+    <Compile Include="ViewModels\BusinessResponseViewModel.cs" />
+    <Compile Include="ViewModels\CurrentUserResponseViewModel.cs" />
+    <Compile Include="ViewModels\LoginRequestViewModel.cs" />
+    <Compile Include="ViewModels\NotificationViewModel.cs" />
+    <Compile Include="ViewModels\RegisterRequestViewModel.cs" />
+    <Compile Include="ViewModels\SaveBusinessRequestViewModel.cs" />
+    <Compile Include="ViewModels\ShareholderViewModel.cs" />
+    <Compile Include="ViewModels\SubmitApplicationRequestViewModel.cs" />
+    <Compile Include="ViewModels\UpdateBusinessRequestViewModel.cs" />
+    <Compile Include="ViewModels\UpdateProfileRequestViewModel.cs" />
+    <Compile Include="ViewModels\ChangePasswordRequestViewModel.cs" />
+    <Compile Include="ViewModels\UserProfileViewModel.cs" />
+    <Compile Include="ViewModels\UserResponseViewModel.cs" />
+    <Compile Include="ViewModels\VerifyOtpRequestViewModel.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Global.asax" />
+    <Content Include="Web.config" />
+    <Content Include="packages.config" />
+    <Content Include="App_Data\.gitkeep" />
+    <Content Include="Views\Web.config" />
+    <Content Include="Views\_ViewStart.cshtml" />
+    <Content Include="Views\Shared\_Layout.cshtml" />
+    <Content Include="Views\Shared\Error.cshtml" />
+    <Content Include="Views\Home\Index.cshtml" />
+    <Content Include="Views\Account\Login.cshtml" />
+    <Content Include="Views\Applicant\Setup.cshtml" />
+    <Content Include="Views\Applicant\Index.cshtml" />
+    <Content Include="Content\css\app.css" />
+    <Content Include="Content\css\build-entry.css" />
+    <Content Include="Content\css\fonts.css" />
+    <Content Include="Content\css\tailwind.generated.css" />
+    <Content Include="Content\css\theme.css" />
+    <Content Include="Content\images\sbp-building-hero.jpg" />
+    <Content Include="Content\images\state_bank_of_pakistan_logo-1.png" />
+    <Content Include="Content\images\state_bank_of_pakistan_logo-2.png" />
+    <Content Include="Scripts\js\api.js" />
+    <Content Include="Scripts\js\bootstrap\home.js" />
+    <Content Include="Scripts\js\bootstrap\login.js" />
+    <Content Include="Scripts\js\bootstrap\setup.js" />
+    <Content Include="Scripts\js\bootstrap\dashboard.js" />
+    <Content Include="Scripts\js\bootstrap\applicationCreate.js" />
+    <Content Include="Scripts\js\bootstrap\myApplicationsList.js" />
+    <Content Include="Scripts\js\bootstrap\applicationDetails.js" />
+    <Content Include="Scripts\js\bootstrap\applicationTrackingPage.js" />
+    <Content Include="Scripts\js\bootstrap\smeAppRoutes.js" />
+    <Content Include="Scripts\js\bootstrap\profile.js" />
+    <Content Include="Scripts\js\bootstrap\profileEdit.js" />
+    <Content Include="Scripts\js\bootstrap\businessProfile.js" />
+    <Content Include="Scripts\js\bootstrap\businessProfileEdit.js" />
+    <Content Include="Scripts\js\bootstrap\changePassword.js" />
+    <Content Include="Scripts\js\bootstrap\notifications.js" />
+    <Content Include="Scripts\js\colors.js" />
+    <Content Include="Scripts\js\main.js" />
+    <Content Include="Scripts\js\pages\bank\auth.js" />
+    <Content Include="Scripts\js\pages\bank\layout.js" />
+    <Content Include="Scripts\js\pages\bank\portal.js" />
+    <Content Include="Scripts\js\pages\intro.js" />
+    <Content Include="Scripts\js\pages\sbp\auth.js" />
+    <Content Include="Scripts\js\pages\sbp\layout.js" />
+    <Content Include="Scripts\js\pages\sbp\portal.js" />
+    <Content Include="Scripts\js\pages\sme\applicationSuccess.js" />
+    <Content Include="Scripts\js\pages\sme\applicationTracking.js" />
+    <Content Include="Scripts\js\pages\sme\applicationDetails.js" />
+    <Content Include="Scripts\js\pages\sme\auth.js" />
+    <Content Include="Scripts\js\pages\sme\businessSetup.js" />
+    <Content Include="Scripts\js\pages\sme\dashboard.js" />
+    <Content Include="Scripts\js\pages\sme\layout.js" />
+    <Content Include="Scripts\js\pages\sme\myApplications.js" />
+    <Content Include="Scripts\js\pages\sme\myBusinesses.js" />
+    <Content Include="Scripts\js\pages\sme\profile.js" />
+    <Content Include="Scripts\js\pages\sme\profileEdit.js" />
+    <Content Include="Scripts\js\pages\sme\businessProfile.js" />
+    <Content Include="Scripts\js\pages\sme\changePassword.js" />
+    <Content Include="Scripts\js\pages\sme\newApplication.js" />
+    <Content Include="Scripts\js\pages\sme\offerLetter.js" />
+    <Content Include="Scripts\js\router.js" />
+    <Content Include="Scripts\js\state.js" />
+    <Content Include="Scripts\js\utils.js" />
+    <Content Include="Scripts\vendor\jspdf.umd.min.js" />
+    <Content Include="Scripts\vendor\lucide.min.js" />
+  </ItemGroup>
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">17.0</VisualStudioVersion>
+    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
+        <WebProjectProperties>
+          <UseIIS>True</UseIIS>
+          <AutoAssignPort>True</AutoAssignPort>
+          <DevelopmentServerPort>0</DevelopmentServerPort>
+          <DevelopmentServerVPath>/</DevelopmentServerVPath>
+          <IISUrl>http://localhost:8090/</IISUrl>
+          <NTLMAuthentication>False</NTLMAuthentication>
+          <UseCustomServer>False</UseCustomServer>
+          <CustomServerUrl>
+          </CustomServerUrl>
+          <SaveServerSettingsInUserFile>False</SaveServerSettingsInUserFile>
+        </WebProjectProperties>
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
+</Project>

@@ -1,0 +1,18 @@
+@{
+    ViewBag.Title = "Login";
+}
+@* Login/Register/OTP page: 1:1 port of the original index.html#/sme/login + js/pages/sme/auth.js.
+   As with Views/Home/Index.cshtml, the whole UI (mode switching between Login/Register/OTP,
+   SSO buttons, password visibility toggle, OTP digit boxes) is entirely JS-rendered by auth.js,
+   unchanged - that's what keeps this page pixel- and behavior-identical to the original, and
+   why there's no server-rendered form markup here to duplicate it.
+
+   auth.js POSTs JSON directly to Controllers/AccountController.cs's LoginApi/RegisterApi/
+   VerifyOtp actions via js/api.js - that JSON path (protected by ValidateAjaxAntiForgeryToken,
+   using the token from GET /api/account/csrf-token) is the only implementation of
+   login/register (Phase 4). There's deliberately no @Html.AntiForgeryToken() here anymore -
+   it was only for the classic form-post placeholder actions removed in Phase 4, and keeping
+   an unused one around would be dead code. *@
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/login.js")"></script>
+}
