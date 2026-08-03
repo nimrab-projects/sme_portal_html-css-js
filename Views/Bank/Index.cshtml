@@ -1,0 +1,12 @@
+@{
+    ViewBag.Title = "Bank Dashboard";
+}
+@* Bank Portal (Phase 13): mounts js/pages/bank/layout.js (persistent sidebar/header shell)
+   plus js/pages/bank/portal.js's activeKey-driven sub-views (Dashboard/Application Queue/
+   Under Assessment/Offers/Credit Assessment) exactly as they already exist - no markup/CSS/
+   animation changes. Unlike the SME side, Bank has no internal hash sub-routes; all
+   navigation between its sub-views is local `activeKey` state inside bank/layout.js itself
+   (see that file's own comment), so there's nothing else to bootstrap here. *@
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/bankPortal.js")"></script>
+}

@@ -52,5 +52,26 @@ namespace SmePortal.Web.Repositories
         {
             return _db.SaveChangesAsync();
         }
+
+        public Task<int> CountPendingByApplicationIdsAsync(IEnumerable<int> applicationIds)
+        {
+            var ids = applicationIds as ICollection<int> ?? applicationIds.ToList();
+            if (ids.Count == 0) return Task.FromResult(0);
+
+            return _db.ApplicationDocuments
+                .CountAsync(d => ids.Contains(d.ApplicationId) && d.Status == "pending_verification");
+        }
+
+        public async Task<Dictionary<int, int>> GetPendingCountsByApplicationIdAsync(IEnumerable<int> applicationIds)
+        {
+            var ids = applicationIds as ICollection<int> ?? applicationIds.ToList();
+            if (ids.Count == 0) return new Dictionary<int, int>();
+
+            return await _db.ApplicationDocuments
+                .Where(d => ids.Contains(d.ApplicationId) && d.Status == "pending_verification")
+                .GroupBy(d => d.ApplicationId)
+                .Select(g => new { ApplicationId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ApplicationId, x => x.Count);
+        }
     }
 }

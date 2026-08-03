@@ -45,8 +45,11 @@ namespace SmePortal.Web.Models
         // (dashboard.js/myApplications.js's STATUS_CONFIG): draft, submitted, under_review,
         // approved, rejected, disbursed. Not redesigned to a simpler Pending/Approved/Rejected
         // set, since that would require changing the existing UI's status badges/filters.
+        // A newly submitted application is already waiting on the bank/SBP, so it starts at
+        // "under_review" (see ApplicationService.SubmitApplicationAsync) - "submitted" remains
+        // a valid historical value on rows created before this change, never rewritten.
         [Required, MaxLength(30)]
-        public string Status { get; set; } = "submitted";
+        public string Status { get; set; } = "under_review";
 
         public int Stage { get; set; } = 1;
 
@@ -81,5 +84,28 @@ namespace SmePortal.Web.Models
 
         public virtual ICollection<ApplicationStatusHistory> StatusHistory { get; set; } = new List<ApplicationStatusHistory>();
         public virtual ICollection<ApplicationDocument> Documents { get; set; } = new List<ApplicationDocument>();
+
+        // Conditional Offer (Phase 14). Real terms entered by the bank officer when issuing a
+        // conditional offer (Bank Portal's Credit Assessment) - free-form display strings
+        // matching exactly what the Offer Letter page needs to show, not new structured
+        // financial fields. OfferApprovedAmount is the one true numeric value (may differ from
+        // the applicant's own RequestedAmount). OfferDocumentId is a plain soft reference to an
+        // ApplicationDocument row (DocumentType "ConditionalOfferLetter") - no EF navigation
+        // property, to avoid a second, ambiguous relationship between these two entity types
+        // alongside the existing Application -> Documents collection.
+        public decimal? OfferApprovedAmount { get; set; }
+        [MaxLength(100)]
+        public string OfferMarkupRate { get; set; }
+        [MaxLength(100)]
+        public string OfferTenor { get; set; }
+        [MaxLength(100)]
+        public string OfferMonthlyInstallment { get; set; }
+        [MaxLength(100)]
+        public string OfferProcessingFee { get; set; }
+        public DateTime? OfferExpiryDate { get; set; }
+        [MaxLength(200)]
+        public string OfferDisbursementTimeline { get; set; }
+        public DateTime? OfferIssuedOn { get; set; }
+        public int? OfferDocumentId { get; set; }
     }
 }

@@ -64,6 +64,38 @@ namespace SmePortal.Web.Controllers
             return JsonCamel(new { application = detail });
         }
 
+        // GET /api/applications/{id}/offer - the real conditional offer terms (Phase 14), once
+        // the Bank Portal has issued one. 404 for "no offer yet" and "not yours" alike, same
+        // convention as Detail above.
+        [Route("{id:int}/offer")]
+        [HttpGet]
+        public async Task<ActionResult> Offer(int id)
+        {
+            var offer = await ApplicationService.GetOfferAsync(CurrentUserId, id);
+            if (offer == null) return new HttpNotFoundResult();
+            return JsonCamel(new { offer });
+        }
+
+        // POST /api/applications/{id}/offer/decision - the applicant's own Accept/Decline on a
+        // real, issued conditional offer. This is what finally sets Status to "approved"/
+        // "rejected" for an offer-gated application (see IApplicationService.DecideOfferAsync).
+        [Route("{id:int}/offer/decision")]
+        [HttpPost]
+        [ValidateAjaxAntiForgeryToken]
+        public async Task<ActionResult> OfferDecision(int id, OfferDecisionRequestViewModel model)
+        {
+            try
+            {
+                var detail = await ApplicationService.DecideOfferAsync(CurrentUserId, id, model?.Decision, model?.Reason);
+                if (detail == null) return new HttpNotFoundResult();
+                return JsonCamel(new { success = true, application = detail });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return JsonCamel(new ApiErrorViewModel { Error = "invalid_decision", Message = ex.Message });
+            }
+        }
+
         [Route("save")]
         [HttpPost]
         [ValidateAjaxAntiForgeryToken]

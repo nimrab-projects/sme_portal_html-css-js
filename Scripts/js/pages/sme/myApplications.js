@@ -17,7 +17,12 @@ const STATUS_CONFIG = {
   disbursed: { label: "Disbursed", color: C.greenDark, bg: C.greenLight },
 };
 
-const STATUS_FILTERS = ["all", "draft", "submitted", "under_review", "approved", "rejected", "disbursed"];
+// Draft/Submitted are no longer reachable applicant-facing states - every application now
+// starts directly at "under_review" (Services/ApplicationService.cs's SubmitApplicationAsync),
+// so they're removed from this filter list. STATUS_CONFIG above keeps both mappings (harmless,
+// unused in practice) purely so statusBadge() never breaks if a legacy row somehow still
+// carries one - this array is the only actual applicant-facing surface being changed here.
+const STATUS_FILTERS = ["all", "under_review", "approved", "rejected", "disbursed"];
 
 function statusBadge(status) {
   const cfg = STATUS_CONFIG[status];

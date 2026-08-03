@@ -22,8 +22,40 @@ import * as smeProfileEdit from "../pages/sme/profileEdit.js";
 import * as smeBusinessProfile from "../pages/sme/businessProfile.js";
 import * as smeBusinessSetup from "../pages/sme/businessSetup.js";
 import * as smeChangePassword from "../pages/sme/changePassword.js";
+import { bootstrapSession } from "../api.js";
+import {
+  setUser, setBusinesses, setApplications, setNotifications,
+  getPersistedSelectedBusinessId, getPersistedViewAllBusinesses, setViewAllBusinesses,
+} from "../state.js";
 
 export { smeLayout };
+
+// Every one of this file's callers (every bootstrap/*.js entry point below) used to duplicate
+// this exact session-hydration snippet, each one independently defaulting the active business
+// back to businesses[0] - meaning the header switcher's selection only ever survived
+// client-side hash navigation within whichever single real page you were already on, and was
+// silently discarded the moment any other real MVC page loaded (a refresh, a bookmark, or any
+// link that isn't wired to router.js's navigate()). Restoring whichever business
+// getPersistedSelectedBusinessId() (state.js, backed by sessionStorage) says was actually
+// active - falling back to businesses[0] only when there's no persisted choice or it no longer
+// matches one of this user's businesses - fixes that for every page at once, not just one.
+// getPersistedViewAllBusinesses() does the same for the header switcher's "All Businesses"
+// option - restored after setBusinesses() so it isn't reset by that call.
+export async function hydrateSmeSession() {
+  const session = await bootstrapSession();
+  if (session.authenticated) {
+    setUser(session.user);
+    if (session.businesses && session.businesses.length) {
+      const persistedId = getPersistedSelectedBusinessId();
+      const restored = persistedId && session.businesses.find((b) => b.id === persistedId);
+      setBusinesses(session.businesses, restored || session.businesses[0]);
+      if (getPersistedViewAllBusinesses()) setViewAllBusinesses(true);
+    }
+    setApplications(session.applications || []);
+    setNotifications(session.notifications || []);
+  }
+  return session;
+}
 
 export function smeChildren() {
   return [
@@ -38,7 +70,10 @@ export function smeChildren() {
     { path: "tracking", render: smeApplicationTracking.render },
     { path: "tracking/:id", render: smeApplicationTracking.render },
     { path: "application-details/:id", render: smeApplicationDetails.render },
+    // Bare "offer" (no id) falls back to the applicant's most recent offer-issued application,
+    // same convention as "tracking" above (see offerLetter.js).
     { path: "offer", render: smeOfferLetter.render },
+    { path: "offer/:id", render: smeOfferLetter.render },
     // Phase 11 - Notifications & Communication Module.
     { path: "notifications", render: smeNotifications.render },
     // Phase 10 - Profile & Business Profile Management.

@@ -78,7 +78,11 @@ namespace SmePortal.Web.Services
                 MonthlyTurnover = ComputeMonthlyTurnover(business.AnnualSales),
                 Employees = ParseIntOrZero(business.Employees),
                 SubmittedByUserId = userId,
-                Status = "submitted",
+                // A submitted application is already waiting for the bank/SBP to review it, so
+                // it starts life at "under_review" rather than a separate "submitted" holding
+                // state - nothing today ever transitions an application out of "submitted"
+                // anyway, so this is a pure relabeling of the starting point, not a new stage.
+                Status = "under_review",
                 Stage = 1,
                 SubmittedOn = now,
                 CreatedOn = now,
@@ -92,7 +96,7 @@ namespace SmePortal.Web.Services
             await _applicationRepository.AddStatusHistoryAsync(new Models.ApplicationStatusHistory
             {
                 ApplicationId = application.ApplicationId,
-                Status = "submitted",
+                Status = "under_review",
                 Note = "Application Submitted",
                 ChangedByUserId = userId,
                 CreatedOn = now,
@@ -119,13 +123,121 @@ namespace SmePortal.Web.Services
                 return null;
             }
 
-            var applicant = await _userRepository.GetByIdAsync(userId);
+            return await BuildDetailViewModelAsync(application);
+        }
+
+        // Phase 13 (Bank Portal) - same detail view, but ownership is "does this application's
+        // business belong to MY bank" instead of "does it belong to ME". A Bank Officer must
+        // never reach another bank's application by guessing an id, same 404-for-both-cases
+        // rule as the applicant-side method above (never reveals whether an id exists at all).
+        public async Task<ApplicationDetailViewModel> GetApplicationDetailForBankAsync(string bankName, int applicationId)
+        {
+            var application = await _applicationRepository.GetByIdAsync(applicationId);
+
+            if (application == null || application.Business == null || string.IsNullOrWhiteSpace(bankName) ||
+                !string.Equals(application.Business.Bank, bankName, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            return await BuildDetailViewModelAsync(application);
+        }
+
+        public async Task<int?> GetOwnerUserIdAsync(int applicationId)
+        {
+            var application = await _applicationRepository.GetByIdAsync(applicationId);
+            return application?.Business?.UserId;
+        }
+
+        public async Task<ApplicationOfferViewModel> GetOfferAsync(int userId, int applicationId)
+        {
+            var application = await _applicationRepository.GetByIdAsync(applicationId);
+
+            if (application == null || application.Business == null || application.Business.UserId != userId ||
+                application.OfferIssuedOn == null)
+            {
+                return null;
+            }
+
+            return new ApplicationOfferViewModel
+            {
+                ApplicationId = application.ApplicationId.ToString(),
+                CaseId = application.CaseId,
+                BusinessName = application.Business.Name,
+                Bank = string.IsNullOrWhiteSpace(application.Business.Bank) ? "Not Provided" : application.Business.Bank,
+                Status = application.Status,
+                ApprovedAmount = application.OfferApprovedAmount ?? 0m,
+                ApprovedAmountDisplay = $"PKR {(application.OfferApprovedAmount ?? 0m):N0}",
+                MarkupRate = application.OfferMarkupRate,
+                Tenor = application.OfferTenor,
+                MonthlyInstallment = application.OfferMonthlyInstallment,
+                ProcessingFee = application.OfferProcessingFee,
+                ExpiryDate = application.OfferExpiryDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                DisbursementTimeline = application.OfferDisbursementTimeline,
+                IssuedOn = application.OfferIssuedOn?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                DocumentId = application.OfferDocumentId?.ToString(),
+            };
+        }
+
+        private static readonly HashSet<string> AllowedOfferDecisions =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "accept", "decline" };
+
+        public async Task<ApplicationDetailViewModel> DecideOfferAsync(int userId, int applicationId, string decision, string reason)
+        {
+            if (string.IsNullOrWhiteSpace(decision) || !AllowedOfferDecisions.Contains(decision))
+            {
+                throw new InvalidOperationException("Decision must be either 'accept' or 'decline'.");
+            }
+
+            var application = await _applicationRepository.GetByIdAsync(applicationId);
+            if (application == null || application.Business == null || application.Business.UserId != userId)
+            {
+                return null;
+            }
+
+            if (!string.Equals(application.Status, "offer_issued", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("This application doesn't currently have a conditional offer awaiting your decision.");
+            }
+
+            var now = DateTime.UtcNow;
+            var normalizedDecision = decision.ToLowerInvariant();
+            var newStatus = normalizedDecision == "accept" ? "approved" : "rejected";
+            application.Status = newStatus;
+            application.UpdatedOn = now;
+            await _applicationRepository.SaveChangesAsync();
+
+            var note = normalizedDecision == "accept"
+                ? "Applicant accepted the conditional offer."
+                : "Applicant declined the conditional offer." + (string.IsNullOrWhiteSpace(reason) ? "" : $" Reason: {reason.Trim()}");
+            await _applicationRepository.AddStatusHistoryAsync(new Models.ApplicationStatusHistory
+            {
+                ApplicationId = applicationId,
+                Status = newStatus,
+                Note = note,
+                ChangedByUserId = userId,
+                CreatedOn = now,
+            });
+
+            await _notificationService.CreateNotificationAsync(
+                userId, normalizedDecision == "accept" ? "Offer Accepted" : "Offer Declined",
+                normalizedDecision == "accept"
+                    ? $"You accepted the conditional offer for {application.CaseId}."
+                    : $"You declined the conditional offer for {application.CaseId}.",
+                "OfferDecision", applicationId, "Application", userId);
+
+            return await GetApplicationDetailAsync(userId, applicationId);
+        }
+
+        private async Task<ApplicationDetailViewModel> BuildDetailViewModelAsync(Models.Application application)
+        {
+            var applicant = await _userRepository.GetByIdAsync(application.Business.UserId);
 
             var distinctUserIds = application.StatusHistory.Select(h => h.ChangedByUserId).Distinct().ToList();
             var userNames = new Dictionary<int, string>();
             foreach (var uid in distinctUserIds)
             {
-                var user = uid == userId ? applicant : await _userRepository.GetByIdAsync(uid);
+                var user = uid == application.Business.UserId ? applicant : await _userRepository.GetByIdAsync(uid);
                 userNames[uid] = user?.FullName ?? "System";
             }
 
@@ -175,6 +287,8 @@ namespace SmePortal.Web.Services
                 BusinessEmail = application.Business.Email,
                 BusinessOwnerCnic = application.Business.OwnerCnic,
                 BusinessStatus = application.Business.BusinessStatus,
+                BusinessIban = application.Business.Iban,
+                BusinessPremise = application.Business.Premise,
                 ApplicantName = applicant?.FullName ?? "",
                 ApplicantEmail = applicant?.Email ?? "",
                 ApplicantMobile = applicant?.Mobile ?? "",
@@ -206,6 +320,7 @@ namespace SmePortal.Web.Services
             {
                 Id = a.ApplicationId.ToString(),
                 CaseId = a.CaseId,
+                BusinessId = a.BusinessId.ToString(),
                 BusinessName = a.Business?.Name ?? "",
                 Scheme = a.Scheme,
                 Amount = a.Amount,

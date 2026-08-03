@@ -18,6 +18,8 @@ namespace SmePortal.Web.Controllers
             new BusinessService(new BusinessRepository(Db), new UserRepository(Db),
                 new NotificationService(new NotificationRepository(Db)), new ApplicationRepository(Db));
 
+        private IBankService BankService => new BankService(new BankRepository(Db));
+
         private int CurrentUserId => Convert.ToInt32(User.Identity.GetUserId());
 
         // Root cause of "Save Business always shows a generic error": every ModelState failure
@@ -79,6 +81,20 @@ namespace SmePortal.Web.Controllers
         {
             var businesses = await BusinessService.GetMyBusinessesAsync(CurrentUserId);
             return JsonCamel(new { businesses });
+        }
+
+        // Powers the Business Setup/Edit form's "Bank" dropdown (js/pages/sme/businessSetup.js) -
+        // real, active banks from SBP Admin's Bank Management (Controllers/
+        // SbpApplicationController.cs's Banks CRUD), replacing the old hardcoded BANKS array.
+        // Active only (Deactivation Rule: an inactive bank must not be offered for new
+        // applications) - businessSetup.js itself keeps an already-selected-but-now-inactive
+        // bank showing when editing, so existing links are never silently dropped.
+        [Route("banks")]
+        [HttpGet]
+        public async Task<ActionResult> ActiveBanks()
+        {
+            var banks = await BankService.GetActiveBankNamesAsync();
+            return JsonCamel(new { banks });
         }
 
         // Phase 12 (Multiple Business Management) - backs the My Businesses page's View/Edit

@@ -35,6 +35,13 @@ namespace SmePortal.Web.ViewModels
         public string BusinessEmail { get; set; }
         public string BusinessOwnerCnic { get; set; }
         public string BusinessStatus { get; set; }
+        // Phase 13 (Bank Portal) - Business.Iban/Premise, needed by the Bank Officer's
+        // Financing Details/Business Information tabs. Additive only: the applicant-facing
+        // GetApplicationDetailAsync doesn't set these (its own page already fetches Business
+        // separately when it needs them), so nothing about the existing applicant Application
+        // Details response changes.
+        public string BusinessIban { get; set; }
+        public string BusinessPremise { get; set; }
 
         public string ApplicantName { get; set; }
         public string ApplicantEmail { get; set; }
@@ -42,8 +49,12 @@ namespace SmePortal.Web.ViewModels
 
         public List<ApplicationStatusHistoryViewModel> Timeline { get; set; } = new List<ApplicationStatusHistoryViewModel>();
 
-        // No document-upload/storage endpoint exists yet (unchanged scope boundary from Phases
-        // 6-7) - always an empty list, never fake entries.
-        public List<object> Documents { get; set; } = new List<object>();
+        // Phase 13 (Bank Portal): populated by GetApplicationDetailForBankAsync for the Bank
+        // Officer's Documents tab (reuses DocumentService/ApplicationDocumentViewModel - no
+        // second document representation invented). The applicant-facing
+        // GetApplicationDetailAsync deliberately leaves this empty, exactly as before - that
+        // page already fetches documents through its own dedicated endpoint
+        // (js/api.js's listApplicationDocuments), so nothing about its existing behavior changes.
+        public List<ApplicationDocumentViewModel> Documents { get; set; } = new List<ApplicationDocumentViewModel>();
     }
 }

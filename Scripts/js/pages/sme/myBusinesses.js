@@ -11,7 +11,7 @@
 import { state, setSelectedBusiness, removeBusinessFromState } from "../../state.js";
 import { C } from "../../colors.js";
 import { navigate } from "../../router.js";
-import { icon, hydrateIcons, wireImageFallbacks, escapeHtml, qs, qsa } from "../../utils.js";
+import { icon, hydrateIcons, wireImageFallbacks, escapeHtml, qs, qsa, matchesSearch } from "../../utils.js";
 import * as api from "../../api.js";
 
 export function render(container) {
@@ -19,7 +19,14 @@ export function render(container) {
   let deletingId = null;
 
   function renderAll() {
-    const { businesses, selectedBusiness } = state;
+    const { selectedBusiness } = state;
+    // Header's global search bar (layout.js) - "search businesses by name, owner, CNIC,
+    // business type, etc.", reusing the exact same matching helper every other page's
+    // global-search filtering uses.
+    const searchQuery = state.globalSearchQuery;
+    const businesses = state.businesses.filter((biz) =>
+      matchesSearch(searchQuery, biz.name, biz.ownerCnic, biz.nature, biz.businessStatus, biz.contactPerson, biz.ntn, biz.address, biz.bank)
+    );
 
     container.innerHTML = `
       <div class="px-6 py-6">
@@ -116,7 +123,7 @@ export function render(container) {
         ${businesses.length === 0 ? `
           <div class="rounded-2xl border p-10 text-center" style="background:${C.surface};border:1.5px solid ${C.border};">
             ${icon("building-2", { size: 40, color: C.textMuted, className: "mx-auto mb-3 opacity-30" })}
-            <p class="text-sm" style="color:${C.textMuted};">No businesses added yet.</p>
+            <p class="text-sm" style="color:${C.textMuted};">${state.businesses.length === 0 ? "No businesses added yet." : "No businesses match your search."}</p>
           </div>
         ` : ""}
       </div>

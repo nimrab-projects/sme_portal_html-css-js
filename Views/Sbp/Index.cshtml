@@ -1,0 +1,10 @@
+@{
+    ViewBag.Title = "SBP Admin Portal";
+}
+@* SBP Admin Portal sync (Phase 1). Mounts js/pages/sbp/layout.js (persistent sidebar/header
+   shell) plus js/pages/sbp/portal.js's activeKey-driven sub-views exactly as they already
+   exist - no markup/CSS/animation changes. Same shape as Views/Bank/Index.cshtml: no internal
+   hash sub-routes, all navigation is local activeKey state inside sbp/layout.js itself. *@
+@section scripts {
+    <script type="module" src="@Url.Content("~/Scripts/js/bootstrap/sbpPortal.js")"></script>
+}

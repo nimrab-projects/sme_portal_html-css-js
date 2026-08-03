@@ -32,5 +32,24 @@ namespace SmePortal.Web.Services
         Task<bool> DeleteAsync(int userId, int applicationId, int documentId);
 
         Task<DocumentDownloadInfo> GetDownloadInfoAsync(int userId, int applicationId, int documentId);
+
+        // Phase 13 (Bank Portal) - Bank Officer document review. Ownership is "assigned to my
+        // bank" (via IApplicationService.GetApplicationDetailForBankAsync), never "uploaded by
+        // me" - officers view/verify/reject documents they never uploaded themselves.
+        Task<List<ApplicationDocumentViewModel>> GetDocumentsForBankAsync(string bankName, int applicationId);
+
+        Task<DocumentDownloadInfo> GetDownloadInfoForBankAsync(string bankName, int applicationId, int documentId);
+
+        // newStatus must be "verified" or "rejected" - anything else throws
+        // InvalidOperationException (400), same "404 vs 400" convention as DeleteAsync above.
+        Task<ApplicationDocumentViewModel> UpdateStatusForBankAsync(string bankName, int applicationId, int documentId, string newStatus, string remarks);
+
+        // Phase 14 (Conditional Offer). Saves the bank officer's uploaded PDF as a regular
+        // ApplicationDocument (DocumentType "ConditionalOfferLetter", pre-marked "verified" -
+        // it's bank-authored, not something awaiting the bank's own verification) - reusing the
+        // exact same storage/ownership plumbing as every other document, not a new upload path.
+        // If one was already issued for this application, replaces it (re-issuing an offer)
+        // rather than accumulating duplicates. Null means "not assigned to this bank" (404).
+        Task<ApplicationDocumentViewModel> UploadOfferDocumentForBankAsync(string bankName, int officerUserId, int applicationId, HttpPostedFileBase file);
     }
 }

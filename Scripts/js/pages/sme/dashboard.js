@@ -2,7 +2,7 @@
 import { state } from "../../state.js";
 import { C } from "../../colors.js";
 import { navigate } from "../../router.js";
-import { icon, hydrateIcons, wireImageFallbacks, qs, qsa } from "../../utils.js";
+import { icon, hydrateIcons, wireImageFallbacks, qs, qsa, matchesSearch } from "../../utils.js";
 
 const STATUS_CONFIG = {
   draft: { label: "Draft", color: C.textMuted, bg: "#F3F4F6" },
@@ -30,12 +30,36 @@ function gradientCard(accent, innerHtml, className = "") {
 }
 
 export function render(container) {
-  const applications = state.applications;
   const selectedBusiness = state.selectedBusiness;
+  const viewAllBusinesses = state.viewAllBusinesses;
+  // Scoped to whichever business is currently active in the header switcher - this is what
+  // makes switching businesses there actually change what the Dashboard shows (stat cards,
+  // Recent Applications, By Status), not just the snapshot card above them. state.applications
+  // holds every application across all of the applicant's businesses (My Applications
+  // intentionally shows that full list unfiltered); Dashboard is the "acting as this business"
+  // view, so it filters down to just that business's applications. Picking "All Businesses" in
+  // the same switcher (viewAllBusinesses) opts back into the unfiltered list. No selectedBusiness
+  // (a brand-new user with none yet, or a transient load) also falls back to showing everything
+  // rather than an empty dashboard.
+  const applications = selectedBusiness && !viewAllBusinesses
+    ? state.applications.filter((a) => a.businessId === selectedBusiness.id)
+    : state.applications;
 
+  // Header's global search bar (layout.js) - filters the Recent Applications table only (stat
+  // cards/composition below stay based on the full business-scoped `applications` set, matching
+  // "search businesses and recent applications" rather than changing the actual counts). Reuses
+  // the exact same matching helper every other page's global-search filtering uses.
+  const searchQuery = state.globalSearchQuery;
+  const recentApplications = applications.filter((a) =>
+    matchesSearch(searchQuery, a.caseId, a.businessName, a.scheme, a.bank)
+  );
+
+  // Draft/Submitted are no longer reachable applicant-facing states - every application now
+  // starts directly at "under_review" (see Services/ApplicationService.cs's
+  // SubmitApplicationAsync) and nothing ever creates a "draft" row from this portal. Both
+  // values stay valid in the backend/enum (bank/SBP tooling and historical data may still use
+  // them) - this only stops the applicant's own Dashboard/My Applications from surfacing them.
   const counts = {
-    draft: applications.filter((a) => a.status === "draft").length,
-    submitted: applications.filter((a) => a.status === "submitted").length,
     under_review: applications.filter((a) => a.status === "under_review").length,
     approved: applications.filter((a) => a.status === "approved").length,
     rejected: applications.filter((a) => a.status === "rejected").length,
@@ -46,8 +70,6 @@ export function render(container) {
   // stat card now opens the real My Applications list (previously some had no destination at
   // all, and others went straight to the single, ID-less tracking/offer pages).
   const CARDS = [
-    { label: "Draft", value: counts.draft, iconName: "file-text", color: C.textMuted, path: "/sme/applications" },
-    { label: "Submitted", value: counts.submitted, iconName: "arrow-up-right", color: C.blue, path: "/sme/applications" },
     { label: "Under Review", value: counts.under_review, iconName: "clock", color: "#D97706", path: "/sme/applications" },
     { label: "Approved", value: counts.approved, iconName: "check-circle-2", color: C.green, path: "/sme/applications" },
     { label: "Rejected", value: counts.rejected, iconName: "x-circle", color: "#DC2626", path: "/sme/applications" },
@@ -60,15 +82,36 @@ export function render(container) {
   // so identity here rides on the always-visible legend labels, not hue alone.
   const totalApps = Math.max(1, applications.length);
   const COMPOSITION = [
-    { name: "Draft", value: counts.draft, opacity: 0.28 },
-    { name: "Submitted", value: counts.submitted, opacity: 0.44 },
     { name: "Under Review", value: counts.under_review, opacity: 0.6 },
     { name: "Approved", value: counts.approved, opacity: 0.76 },
     { name: "Rejected", value: counts.rejected, opacity: 0.88 },
     { name: "Disbursed", value: counts.disbursed, opacity: 1 },
   ].filter((d) => d.value > 0);
 
-  const snapshotInner = `
+  // "All Businesses" has no single name/nature/address/NTN to show - swaps those four fields
+  // for an aggregate business-count + application-count instead, same card/icon/layout
+  // otherwise untouched.
+  const snapshotInner = viewAllBusinesses ? `
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-3.5 sm:px-5 py-3 sm:py-4">
+      <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0"
+        style="background:linear-gradient(135deg, ${C.green}, ${C.greenDark});">
+        ${icon("layers", { size: 20, color: "#fff" })}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="text-base font-extrabold truncate" style="color:${C.text};">All Businesses</div>
+        <div class="text-xs mt-0.5" style="color:${C.textMuted};">Showing applications across every business you own</div>
+      </div>
+      <div class="flex items-center gap-4 sm:pl-4 sm:border-l" style="border-color:${C.border};">
+        <div class="flex items-center gap-1.5">
+          ${icon("building-2", { size: 14, color: C.textMuted })}
+          <span class="text-xs font-semibold" style="color:${C.text};font-family:var(--font-mono);">${state.businesses.length} businesses</span>
+        </div>
+        <span class="text-xs font-bold px-2.5 py-1 rounded-full" style="background:${C.greenLight};color:${C.green};">
+          ${applications.length} applications
+        </span>
+      </div>
+    </div>
+  ` : `
     <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-3.5 sm:px-5 py-3 sm:py-4">
       <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0"
         style="background:linear-gradient(135deg, ${C.green}, ${C.greenDark});">
@@ -126,7 +169,7 @@ export function render(container) {
             </tr>
           </thead>
           <tbody>
-            ${applications.map((app) => `
+            ${recentApplications.map((app) => `
               <tr data-app-row data-app-id="${app.id}" class="border-t transition-colors hover:bg-gray-50 cursor-pointer" style="border-color:${C.border};">
                 <td class="px-4 py-3">
                   <span style="font-family:var(--font-mono);font-size:12px;color:${C.text};">${app.caseId}</span>
@@ -150,9 +193,11 @@ export function render(container) {
                 </td>
               </tr>
             `).join("")}
-            ${applications.length === 0 ? `
+            ${recentApplications.length === 0 ? `
               <tr>
-                <td colspan="7" class="px-4 py-10 text-center text-xs" style="color:${C.textMuted};">No applications yet.</td>
+                <td colspan="7" class="px-4 py-10 text-center text-xs" style="color:${C.textMuted};">
+                  ${applications.length === 0 ? "No applications yet." : "No applications match your search."}
+                </td>
               </tr>
             ` : ""}
           </tbody>
@@ -245,7 +290,7 @@ export function render(container) {
 
       ${gradientCard(C.green, snapshotInner, "mb-6")}
 
-      <div class="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-6">
         ${statCards}
       </div>
 

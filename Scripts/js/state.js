@@ -47,16 +47,102 @@ function freshState() {
     user: null,
     businesses: SAMPLE_BUSINESSES.slice(),
     selectedBusiness: SAMPLE_BUSINESSES[0],
+    // Dashboard-only "aggregate" view: shows every application across every one of the
+    // applicant's businesses instead of filtering to just selectedBusiness. Kept separate from
+    // selectedBusiness (rather than repurposing null as "all") because selectedBusiness is also
+    // what New Application/the header snapshot use as "the business currently being acted as" -
+    // those still need one real business even while the Dashboard is showing everything.
+    viewAllBusinesses: false,
     applications: SAMPLE_APPS.slice(),
     selectedApplication: null,
     applicationDocuments: {},
     notifications: SAMPLE_NOTIFICATIONS.slice(),
     offerDocument: null,
     bankApplications: SAMPLE_BANK_APPLICATIONS.slice(),
+    // Header's global search bar (layout.js) - deliberately NOT persisted to sessionStorage like
+    // selectedBusiness/viewAllBusinesses above: it's a live, in-the-moment filter for whatever
+    // page is currently open, not something that should still be filtering a totally different
+    // page after a fresh navigation/reload.
+    globalSearchQuery: "",
   };
 }
 
 export const state = freshState();
+
+// Every real MVC page (Dashboard, New Application, My Applications, Application Details, ...)
+// is its own full document load with its own fresh copy of this module - "no persistence,
+// resets to seed data on every reload" (see the top comment) applies to the whole store, so
+// without this, each page's own bootstrap independently defaulted the active business back to
+// businesses[0], silently discarding whatever the header switcher's dropdown had last selected
+// the moment any real (not client-side-hash) navigation happened. sessionStorage is the minimal
+// persistence that survives exactly that - it's per-tab and cleared when the session ends,
+// unlike localStorage, matching "remembered for this login session, nothing more".
+const SELECTED_BUSINESS_STORAGE_KEY = "sme.selectedBusinessId";
+
+function persistSelectedBusinessId(business) {
+  try {
+    if (business?.id) sessionStorage.setItem(SELECTED_BUSINESS_STORAGE_KEY, business.id);
+    else sessionStorage.removeItem(SELECTED_BUSINESS_STORAGE_KEY);
+  } catch (e) {
+    // Private-browsing/storage-disabled: falls back to the businesses[0] default every load,
+    // exactly like before this existed - never worth breaking the page over.
+  }
+}
+
+// Used once, at boot, by each real MVC page's bootstrap script (js/bootstrap/smeAppRoutes.js's
+// hydrateSmeSession()) to restore the business the applicant actually had active, instead of
+// always resetting to the first one in the list.
+export function getPersistedSelectedBusinessId() {
+  try {
+    return sessionStorage.getItem(SELECTED_BUSINESS_STORAGE_KEY);
+  } catch (e) {
+    return null;
+  }
+}
+
+// Same reasoning/lifetime as SELECTED_BUSINESS_STORAGE_KEY above - without this, picking "All
+// Businesses" on the Dashboard would silently revert to a single filtered business the moment
+// any other real page loaded.
+const VIEW_ALL_BUSINESSES_STORAGE_KEY = "sme.viewAllBusinesses";
+
+function persistViewAllBusinesses(flag) {
+  try {
+    if (flag) sessionStorage.setItem(VIEW_ALL_BUSINESSES_STORAGE_KEY, "1");
+    else sessionStorage.removeItem(VIEW_ALL_BUSINESSES_STORAGE_KEY);
+  } catch (e) {
+    // Same private-browsing fallback as persistSelectedBusinessId - never worth breaking the
+    // page over.
+  }
+}
+
+// Used once, at boot, by hydrateSmeSession() (js/bootstrap/smeAppRoutes.js) alongside
+// getPersistedSelectedBusinessId().
+export function getPersistedViewAllBusinesses() {
+  try {
+    return sessionStorage.getItem(VIEW_ALL_BUSINESSES_STORAGE_KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+// Header switcher's "All Businesses" option - Dashboard shows every application across every
+// business instead of filtering to one. Picking a specific business (setSelectedBusiness)
+// always exits this mode again.
+export function setViewAllBusinesses(flag) {
+  state.viewAllBusinesses = flag;
+  persistViewAllBusinesses(flag);
+  notify();
+}
+
+// Header's global search bar (layout.js). Every subscribed page's render function re-runs on
+// every keystroke via the same subscribe(renderShell) -> renderOutlet() chain that already
+// drives selectedBusiness/viewAllBusinesses-based filtering (e.g. dashboard.js) - reading
+// state.globalSearchQuery fresh in each page's own render is how it takes effect, not a new
+// mechanism.
+export function setGlobalSearchQuery(q) {
+  state.globalSearchQuery = q ?? "";
+  notify();
+}
 
 const listeners = new Set();
 
@@ -82,20 +168,30 @@ export function setUser(u) {
 
 export function setSelectedBusiness(b) {
   state.selectedBusiness = b;
+  state.viewAllBusinesses = false;
+  persistSelectedBusinessId(b);
+  persistViewAllBusinesses(false);
   notify();
 }
 
 export function addBusiness(b) {
   state.businesses = [...state.businesses, b];
   state.selectedBusiness = b;
+  state.viewAllBusinesses = false;
+  persistSelectedBusinessId(b);
+  persistViewAllBusinesses(false);
   notify();
 }
 
 // Bulk-hydrates businesses from the real backend (js/api.js's bootstrapSession()) - used only
-// at boot, to replace the seed data with a logged-in user's actual saved businesses.
+// at boot, to replace the seed data with a logged-in user's actual saved businesses. `selected`
+// is normally whichever business hydrateSmeSession() (js/bootstrap/smeAppRoutes.js) restored
+// from getPersistedSelectedBusinessId(), so this doesn't overwrite that choice with list[0] -
+// it only falls back to list[0] if the caller didn't have an opinion.
 export function setBusinesses(list, selected) {
   state.businesses = list;
   state.selectedBusiness = selected ?? list[0] ?? null;
+  persistSelectedBusinessId(state.selectedBusiness);
   notify();
 }
 
@@ -106,6 +202,7 @@ export function updateBusinessInState(business) {
   state.businesses = state.businesses.map((b) => (b.id === business.id ? business : b));
   if (state.selectedBusiness?.id === business.id) {
     state.selectedBusiness = business;
+    persistSelectedBusinessId(business);
   }
   notify();
 }
@@ -118,6 +215,7 @@ export function removeBusinessFromState(businessId) {
   state.businesses = state.businesses.filter((b) => b.id !== businessId);
   if (state.selectedBusiness?.id === businessId) {
     state.selectedBusiness = state.businesses[0] ?? null;
+    persistSelectedBusinessId(state.selectedBusiness);
   }
   notify();
 }
@@ -128,6 +226,14 @@ export function removeBusinessFromState(businessId) {
 // render their existing "No applications yet" empty states correctly for that case).
 export function setApplications(list) {
   state.applications = list;
+  notify();
+}
+
+// Phase 13 (Bank Portal) - bulk-hydrates a Bank Officer's assigned applications from the real
+// backend (js/bootstrap/bankPortal.js), replacing SAMPLE_BANK_APPLICATIONS the same way
+// setApplications() replaces SAMPLE_APPS for the applicant side.
+export function setBankApplications(list) {
+  state.bankApplications = list;
   notify();
 }
 

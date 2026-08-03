@@ -74,5 +74,24 @@ namespace SmePortal.Web.Repositories
         {
             return _db.SaveChangesAsync();
         }
+
+        public async Task<List<ApplicationUser>> GetAllAsync()
+        {
+            return await _db.Users.ToListAsync();
+        }
+
+        public async Task<Dictionary<int, List<string>>> GetAllUserRoleNamesAsync()
+        {
+            var pairs = await (
+                from u in _db.Users
+                from ur in u.Roles
+                join r in _db.Roles on ur.RoleId equals r.Id
+                select new { UserId = u.Id, RoleName = r.Name }
+            ).ToListAsync();
+
+            return pairs
+                .GroupBy(p => p.UserId)
+                .ToDictionary(g => g.Key, g => g.Select(p => p.RoleName).ToList());
+        }
     }
 }

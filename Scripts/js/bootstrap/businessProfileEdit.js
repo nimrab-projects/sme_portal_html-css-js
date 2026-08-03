@@ -1,20 +1,10 @@
 // External bootstrap module for Views/Profile/BusinessEdit.cshtml - identical to bootstrap/
 // dashboard.js except the router defaults to #/sme/business-profile/edit, which mounts
 // js/pages/sme/businessSetup.js in its edit mode (see smeAppRoutes.js).
-import { bootstrapSession } from "../api.js";
-import { setUser, setBusinesses, setApplications, setNotifications } from "../state.js";
 import { start } from "../router.js";
-import { smeLayout, smeChildren } from "./smeAppRoutes.js";
+import { smeLayout, smeChildren, hydrateSmeSession } from "./smeAppRoutes.js";
 
-const session = await bootstrapSession();
-if (session.authenticated) {
-  setUser(session.user);
-  if (session.businesses && session.businesses.length) {
-    setBusinesses(session.businesses, session.businesses[0]);
-  }
-  setApplications(session.applications || []);
-  setNotifications(session.notifications || []);
-}
+const session = await hydrateSmeSession();
 
 if (!window.location.hash || window.location.hash === "#/") {
   window.location.hash = "#/sme/business-profile/edit";

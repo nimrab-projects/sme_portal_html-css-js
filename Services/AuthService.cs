@@ -33,6 +33,8 @@ namespace SmePortal.Web.Services
                 Name = user.FullName,
                 Email = user.Email,
                 Mobile = user.Mobile,
+                BankName = user.BankName,
+                ProfilePictureUrl = user.ProfilePictureUrl,
             };
         }
     }

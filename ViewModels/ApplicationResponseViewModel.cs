@@ -9,6 +9,7 @@ namespace SmePortal.Web.ViewModels
     {
         public string Id { get; set; }
         public string CaseId { get; set; }
+        public string BusinessId { get; set; }
         public string BusinessName { get; set; }
         public string Scheme { get; set; }
         public string Amount { get; set; }

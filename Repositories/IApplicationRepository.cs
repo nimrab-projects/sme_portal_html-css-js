@@ -25,5 +25,16 @@ namespace SmePortal.Web.Repositories
         // Phase 12 (Multiple Business Management) - backs BusinessService.DeleteBusinessAsync's
         // "never delete a business with applications on record" rule.
         Task<int> CountByBusinessIdAsync(int businessId);
+
+        // Phase 13 (Bank Portal) - "my assigned applications" for a Bank Officer. Scoped by
+        // Business.Bank (the only place a bank name is ever stored - see Business.cs), never
+        // by anything client-supplied, matching the same "never trust a client id" rule
+        // GetByBusinessIdsAsync already follows for the applicant side.
+        Task<List<Models.Application>> GetByBankNameAsync(string bankName);
+
+        // SBP Admin Portal sync - the one place system-wide, unscoped access is legitimate
+        // (an SBP Administrator has oversight across every bank, unlike a Bank Officer or
+        // Applicant). Same eager-loading shape as GetByBankNameAsync, just without the WHERE.
+        Task<List<Models.Application>> GetAllAsync();
     }
 }

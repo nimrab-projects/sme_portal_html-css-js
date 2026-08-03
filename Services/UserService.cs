@@ -14,6 +14,11 @@ namespace SmePortal.Web.Services
     // spec says not to build.
     public class UserService : IUserService
     {
+        // ~700,000 base64 characters caps a stored picture around ~500KB decoded - a small
+        // avatar, not a document. Enforced here (not just client-side) since this is the one
+        // place ProfilePictureUrl is ever written.
+        private const int MaxProfilePictureLength = 700_000;
+
         private readonly IUserRepository _userRepository;
         private readonly IBusinessRepository _businessRepository;
 
@@ -50,6 +55,18 @@ namespace SmePortal.Web.Services
                 throw new InvalidOperationException("This mobile number is already registered to another account.");
             }
 
+            // null = "leave the existing picture untouched" (a name/phone-only save); any string
+            // (including "") = "set it to this" - "" is how the client clears a picture back to
+            // the initial-letter fallback. See ViewModels/UpdateProfileRequestViewModel.cs.
+            if (model.ProfilePictureUrl != null)
+            {
+                if (model.ProfilePictureUrl.Length > MaxProfilePictureLength)
+                {
+                    throw new InvalidOperationException("Profile picture is too large. Please choose a smaller image.");
+                }
+                user.ProfilePictureUrl = model.ProfilePictureUrl.Length == 0 ? null : model.ProfilePictureUrl;
+            }
+
             user.FullName = model.FullName.Trim();
             user.Mobile = normalizedMobile;
             user.UpdatedOn = DateTime.UtcNow;
@@ -78,6 +95,8 @@ namespace SmePortal.Web.Services
                 RegistrationDate = user.CreatedOn.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 LastLogin = user.LastLogin?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "Never",
                 AccountStatus = user.IsActive ? "Active" : "Inactive",
+                Department = string.IsNullOrWhiteSpace(user.Department) ? "Not Provided" : user.Department,
+                ProfilePictureUrl = user.ProfilePictureUrl,
             };
         }
     }

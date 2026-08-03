@@ -20,18 +20,11 @@ import { C } from "../../colors.js";
 import { icon, hydrateIcons, wireImageFallbacks, escapeHtml, qs, qsa } from "../../utils.js";
 import * as api from "../../api.js";
 
-const BANKS = [
-  "Habib Bank Limited (HBL)",
-  "United Bank Limited (UBL)",
-  "MCB Bank Limited",
-  "Allied Bank Limited",
-  "National Bank of Pakistan",
-  "Bank Alfalah",
-  "Meezan Bank",
-  "Faysal Bank",
-  "Askari Bank",
-  "Standard Chartered Bank",
-];
+// SBP Admin Bank Management sync - real, active banks from Controllers/BusinessController.cs's
+// banks endpoint (Services/BankService.cs), replacing what used to be a hardcoded array here.
+// Module-scoped (not local to render()) so a bank added/deactivated in Bank Management is
+// reflected the next time this form mounts, with no code change needed anywhere in this file.
+let bankOptions = [];
 
 const INITIAL_FORM = {
   name: "", ownerCnic: "", contactPerson: "", cellLandline: "", email: "", ntn: "",
@@ -325,7 +318,7 @@ export function render(container, params) {
                 <span class="text-xs ml-1" style="color:${C.textMuted};">(Optional)</span>
               </div>
               <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4" style="background:${C.surface};">
-                ${selectHtml({ key: "bank", label: "Bank", options: BANKS, value: form.bank })}
+                ${selectHtml({ key: "bank", label: "Bank", options: bankOptions, value: form.bank })}
                 ${fieldHtml({ key: "iban", label: "Business IBAN", placeholder: "e.g. PK36SCBL0000001123456702", hint: "International Bank Account Number (IBAN)", value: form.iban })}
               </div>
             </div>
@@ -474,6 +467,18 @@ export function render(container, params) {
 
   renderAll();
 
+  // Fetches independently of (and possibly resolves before or after) the edit-mode business
+  // fetch below - both handlers re-apply the "keep the current value selectable" check so
+  // whichever order they land in, an already-selected-but-now-inactive bank is never silently
+  // dropped from the dropdown (Deactivation Rule: existing links must remain intact).
+  api.listActiveBanks().then((result) => {
+    bankOptions = (result && result.banks) || [];
+    if (form.bank && !bankOptions.includes(form.bank)) {
+      bankOptions = [form.bank, ...bankOptions];
+    }
+    renderAll();
+  });
+
   if (mode === "edit") {
     const fetchBusiness = params && params.id ? api.getBusinessById(params.id) : api.getMyPrimaryBusiness();
     fetchBusiness.then((result) => {
@@ -482,6 +487,9 @@ export function render(container, params) {
         editBusinessId = result.business.id;
         form = businessToForm(result.business);
         shareholders = businessToShareholders(result.business);
+        if (form.bank && !bankOptions.includes(form.bank)) {
+          bankOptions = [form.bank, ...bankOptions];
+        }
       } else {
         saveError = "Couldn't load your business profile. Please try again.";
       }

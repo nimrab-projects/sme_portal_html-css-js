@@ -12,11 +12,17 @@ namespace SmePortal.Web.Services
 {
     public class DocumentService : IDocumentService
     {
-        // Statuses at/after which a bank is presumed to already be acting on the submitted
-        // document set - deleting past this point could pull a file out from under a reviewer.
-        // "draft"/"submitted" (today's only real status) still allow delete/replace freely.
+        // Statuses at/after which the review has concluded and a bank has already acted on the
+        // submitted document set - deleting past this point could pull a file out from under a
+        // decision already made. "under_review" is deliberately NOT included here even though a
+        // new application starts there immediately on submission (see
+        // ApplicationService.SubmitApplicationAsync): the real document upload only ever happens
+        // post-submission from the Application Details page (there is no separate upload step in
+        // the New Application wizard itself), so applicants still need to be able to
+        // upload/replace/delete documents while their application is under review, right up
+        // until a bank actually decides it.
         private static readonly HashSet<string> StatusesLockingDocuments =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "under_review", "approved", "rejected", "disbursed" };
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "approved", "rejected", "disbursed" };
 
         // Matches the existing frontend's own <input accept=".pdf,.jpg,.jpeg,.png"> exactly
         // (js/pages/sme/newApplication.js) - not a new, separately-invented allow-list. This is
@@ -121,7 +127,7 @@ namespace SmePortal.Web.Services
 
             if (StatusesLockingDocuments.Contains(detail.Status))
             {
-                throw new InvalidOperationException("Documents can no longer be replaced once the application is under review.");
+                throw new InvalidOperationException("Documents can no longer be replaced once a decision has been made on this application.");
             }
 
             var extension = ValidateFile(file);
@@ -160,7 +166,7 @@ namespace SmePortal.Web.Services
 
             if (StatusesLockingDocuments.Contains(detail.Status))
             {
-                throw new InvalidOperationException("Documents can no longer be deleted once the application is under review.");
+                throw new InvalidOperationException("Documents can no longer be deleted once a decision has been made on this application.");
             }
 
             TryDeletePhysicalFile(existing.StoragePath);
@@ -185,6 +191,127 @@ namespace SmePortal.Web.Services
                 OriginalFileName = existing.OriginalFileName,
                 ContentType = existing.ContentType,
             };
+        }
+
+        public async Task<List<ApplicationDocumentViewModel>> GetDocumentsForBankAsync(string bankName, int applicationId)
+        {
+            var detail = await _applicationService.GetApplicationDetailForBankAsync(bankName, applicationId);
+            if (detail == null) return null;
+
+            var documents = await _documentRepository.GetByApplicationIdAsync(applicationId);
+            return documents.Select(Map).ToList();
+        }
+
+        public async Task<DocumentDownloadInfo> GetDownloadInfoForBankAsync(string bankName, int applicationId, int documentId)
+        {
+            var detail = await _applicationService.GetApplicationDetailForBankAsync(bankName, applicationId);
+            if (detail == null) return null;
+
+            var existing = await _documentRepository.GetByIdAsync(applicationId, documentId);
+            if (existing == null) return null;
+
+            var physicalPath = Path.Combine(_uploadsRootPath, existing.StoragePath.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(physicalPath)) return null;
+
+            return new DocumentDownloadInfo
+            {
+                PhysicalPath = physicalPath,
+                OriginalFileName = existing.OriginalFileName,
+                ContentType = existing.ContentType,
+            };
+        }
+
+        private static readonly HashSet<string> AllowedBankDocumentStatuses =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "verified", "rejected" };
+
+        public async Task<ApplicationDocumentViewModel> UpdateStatusForBankAsync(
+            string bankName, int applicationId, int documentId, string newStatus, string remarks)
+        {
+            var detail = await _applicationService.GetApplicationDetailForBankAsync(bankName, applicationId);
+            if (detail == null) return null;
+
+            var existing = await _documentRepository.GetByIdAsync(applicationId, documentId);
+            if (existing == null) return null;
+
+            if (string.IsNullOrWhiteSpace(newStatus) || !AllowedBankDocumentStatuses.Contains(newStatus))
+            {
+                throw new InvalidOperationException("Status must be either 'verified' or 'rejected'.");
+            }
+
+            existing.Status = newStatus.ToLowerInvariant();
+            existing.Remarks = string.IsNullOrWhiteSpace(remarks) ? null : remarks.Trim();
+            await _documentRepository.SaveChangesAsync();
+
+            // The applicant owns this document (via Application -> Business -> UserId), not the
+            // reviewing bank officer - they're the one who needs to know a decision was made on
+            // something they uploaded.
+            var notificationTitle = existing.Status == "verified" ? "Document Verified" : "Document Rejected";
+            var notificationMessage = existing.Status == "verified"
+                ? $"Your {existing.DocumentType} document for {detail.CaseId} has been verified."
+                : $"Your {existing.DocumentType} document for {detail.CaseId} was rejected." +
+                  (string.IsNullOrWhiteSpace(existing.Remarks) ? "" : $" Reason: {existing.Remarks}");
+            var applicantUserId = await _applicationService.GetOwnerUserIdAsync(applicationId);
+            if (applicantUserId.HasValue)
+            {
+                await _notificationService.CreateNotificationAsync(
+                    applicantUserId.Value, notificationTitle, notificationMessage,
+                    existing.Status == "verified" ? "DocumentVerified" : "DocumentRejected",
+                    applicationId, "Application");
+            }
+
+            return Map(existing);
+        }
+
+        private const string OfferDocumentType = "ConditionalOfferLetter";
+
+        public async Task<ApplicationDocumentViewModel> UploadOfferDocumentForBankAsync(string bankName, int officerUserId, int applicationId, HttpPostedFileBase file)
+        {
+            var detail = await _applicationService.GetApplicationDetailForBankAsync(bankName, applicationId);
+            if (detail == null) return null;
+
+            var extension = ValidateFile(file);
+            var folder = EnsureApplicationFolder(detail.CaseId);
+            var storedFileName = Guid.NewGuid().ToString("N") + extension;
+            var physicalPath = Path.Combine(folder, storedFileName);
+            await SaveFileAsync(file, physicalPath);
+
+            var existing = await _documentRepository.GetByApplicationAndTypeAsync(applicationId, OfferDocumentType);
+            if (existing != null)
+            {
+                // Re-issuing an offer (e.g. correcting a mistake) replaces the previous file
+                // rather than accumulating a second ConditionalOfferLetter row.
+                TryDeletePhysicalFile(existing.StoragePath);
+                existing.OriginalFileName = SanitizeOriginalFileName(file.FileName);
+                existing.StoredFileName = storedFileName;
+                existing.ContentType = AllowedExtensions[extension];
+                existing.FileSize = file.ContentLength;
+                existing.StoragePath = RelativeStoragePath(detail.CaseId, storedFileName);
+                existing.UploadedByUserId = officerUserId;
+                existing.UploadedOn = DateTime.UtcNow;
+                existing.Status = "verified";
+                existing.Remarks = null;
+                await _documentRepository.SaveChangesAsync();
+                return Map(existing);
+            }
+
+            var document = new Models.ApplicationDocument
+            {
+                ApplicationId = applicationId,
+                DocumentType = OfferDocumentType,
+                OriginalFileName = SanitizeOriginalFileName(file.FileName),
+                StoredFileName = storedFileName,
+                ContentType = AllowedExtensions[extension],
+                FileSize = file.ContentLength,
+                StoragePath = RelativeStoragePath(detail.CaseId, storedFileName),
+                UploadedByUserId = officerUserId,
+                UploadedOn = DateTime.UtcNow,
+                // Bank-authored, not something awaiting the bank's own verification - see
+                // AllowedBankDocumentStatuses/UpdateStatusForBankAsync above, which this
+                // deliberately never routes through.
+                Status = "verified",
+            };
+            await _documentRepository.AddAsync(document);
+            return Map(document);
         }
 
         private string EnsureApplicationFolder(string caseId)

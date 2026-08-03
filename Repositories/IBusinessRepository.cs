@@ -25,5 +25,11 @@ namespace SmePortal.Web.Repositories
         // since the client has no stable shareholder IDs to diff against and shareholder rows
         // carry no identity of their own beyond belonging to this business.
         Task ReplaceShareholdersAsync(int businessId, List<Shareholder> newShareholders);
+
+        // SBP Admin Portal sync (Phase 3 - User Management) - every business system-wide, in
+        // one query, so the user list can derive each user's CNIC/business names/bank in bulk
+        // (grouped by UserId in the service layer) instead of calling GetByUserIdAsync in a
+        // loop (N+1).
+        Task<List<Business>> GetAllAsync();
     }
 }

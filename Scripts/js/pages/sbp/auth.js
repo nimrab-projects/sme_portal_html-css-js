@@ -1,25 +1,69 @@
-// 1:1 port of src/app/pages/sbp/SbpAuth.tsx
-import { setUser } from "../../state.js";
+// SBP Admin Portal sync (Phase 1). Previously 100% mock: 3 credential fields (email/password/
+// admin key) that were never validated, followed by a 6-digit MFA step that accepted any code
+// and logged in as a hardcoded fake user regardless of input. Now real email + OTP only - the
+// exact same mechanism Bank Officer login already uses (Controllers/AccountController.cs's
+// SbpAdminLoginRequestOtp/VerifyOtp), just a different role/purpose. The left panel's SBP
+// Admin branding/copy/warnings are kept exactly as they were; only the actual form step changed
+// from 3 fake fields to the one real field that matters.
 import { navigate } from "../../router.js";
 import { C } from "../../colors.js";
 import { icon, hydrateIcons, wireImageFallbacks, escapeHtml, qs, qsa } from "../../utils.js";
+import * as api from "../../api.js";
 
 export function render(container) {
   let email = "";
-  let password = "";
-  let adminKey = "";
-  let showPass = false;
-  let step = "credentials"; // "credentials" | "mfa"
-  let mfaCode = "";
+  let step = "credentials"; // "credentials" | "otp"
+  let otp = "";
+  let sending = false;
+  let verifying = false;
+  let error = "";
 
-  function handleCredentials() {
-    step = "mfa";
+  // This page's own bootstrap (bootstrap/home.js) mounts the public landing page, which never
+  // calls loadCsrfToken() itself - this form's Send OTP/Verify calls are the first POSTs made
+  // on it, so the token is fetched lazily, once, right before it's actually needed (same
+  // reasoning as js/pages/bank/auth.js).
+  let csrfReady = api.loadCsrfToken();
+
+  async function handleSendOtp() {
+    if (!email.trim() || sending) return;
+    sending = true;
+    error = "";
+    otp = "";
+    renderAll();
+
+    await csrfReady;
+    const result = await api.requestSbpAdminLoginOtp(email.trim());
+    sending = false;
+
+    if (!result || !result.success) {
+      error = (result && result.message) || "Couldn't send an OTP for this account. Please check your email and try again.";
+      renderAll();
+      return;
+    }
+
+    step = "otp";
     renderAll();
   }
 
-  function handleMfa() {
-    setUser({ name: "Dr. Amjad Hussain — SBP", email: email || "amjad.hussain@sbp.org.pk" });
-    navigate("/sbp");
+  async function handleVerify() {
+    if (verifying) return;
+    verifying = true;
+    error = "";
+    renderAll();
+
+    const result = await api.verifySbpAdminLoginOtp(email.trim(), otp);
+    verifying = false;
+
+    if (!result || !result.success) {
+      error = (result && result.message) || "That code didn't match. Please try again.";
+      renderAll();
+      return;
+    }
+
+    // Real MVC navigation (not router.js's hash navigate()) - /Sbp is a server-protected page
+    // (SbpController's [Authorize(Roles="SbpAdmin")]), same reason Bank Portal's own
+    // Verify & Enter does a real window.location.href instead of a hash change.
+    window.location.href = "/Sbp";
   }
 
   function buildHtml() {
@@ -76,7 +120,7 @@ export function render(container) {
               <div class="w-6 h-6 rounded-full flex items-center justify-center" style="background:rgba(251,146,60,0.15);">
                 ${icon("key-round", { size: 14, color: "#FB923C" })}
               </div>
-              <span class="text-white text-xs">Hardware key or authenticator app</span>
+              <span class="text-white text-xs">One-time passcode sent to your official email</span>
             </div>
           </div>
         </div>
@@ -107,48 +151,42 @@ export function render(container) {
                   </div>
                   <div>
                     <h3 class="text-lg font-bold" style="color:${C.text};">SBP Admin Login</h3>
-                    <p class="text-xs" style="color:${C.textMuted};">Step 1 of 2 — Credentials</p>
+                    <p class="text-xs" style="color:${C.textMuted};">Enter your details to receive a one-time passcode</p>
                   </div>
                 </div>
 
-                <div class="space-y-4 mb-6">
+                <div class="space-y-4">
                   <div>
                     <label class="block text-sm font-medium mb-1.5" style="color:${C.text};">Official SBP Email</label>
                     <div class="relative">
-                      <div class="absolute left-3.5 top-1/2 -translate-y-1/2">${icon("mail", { size: 16, color: C.textMuted })}</div>
+                      <div class="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">${icon("mail", { size: 16, color: C.textMuted })}</div>
                       <input data-field="email" type="email" placeholder="name@sbp.org.pk" value="${escapeHtml(email)}"
                         class="w-full rounded-xl text-sm outline-none"
                         style="padding:12px 16px 12px 40px;background:${C.surface};border:1.5px solid ${C.border};color:${C.text};" />
                     </div>
                   </div>
-                  <div>
-                    <label class="block text-sm font-medium mb-1.5" style="color:${C.text};">Password</label>
-                    <div class="relative">
-                      <div class="absolute left-3.5 top-1/2 -translate-y-1/2">${icon("lock", { size: 16, color: C.textMuted })}</div>
-                      <input data-field="password" type="${showPass ? "text" : "password"}" placeholder="Your password" value="${escapeHtml(password)}"
-                        class="w-full rounded-xl text-sm outline-none"
-                        style="padding:12px 44px 12px 40px;background:${C.surface};border:1.5px solid ${C.border};color:${C.text};" />
-                      <button type="button" data-toggle-password class="absolute right-3.5 top-1/2 -translate-y-1/2" style="color:${C.textMuted};">
-                        ${icon(showPass ? "eye-off" : "eye", { size: 16 })}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium mb-1.5" style="color:${C.text};">Admin Access Key</label>
-                    <div class="relative">
-                      <div class="absolute left-3.5 top-1/2 -translate-y-1/2">${icon("key-round", { size: 16, color: C.textMuted })}</div>
-                      <input data-field="adminKey" type="text" placeholder="SBP-ADMIN-XXXX-XXXX" value="${escapeHtml(adminKey)}"
-                        class="w-full rounded-xl text-sm outline-none"
-                        style="padding:12px 16px 12px 40px;background:${C.surface};border:1.5px solid ${C.border};color:${C.text};font-family:var(--font-mono);" />
-                    </div>
-                  </div>
                 </div>
 
-                <button data-action="credentials"
-                  class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90"
+                ${error ? `
+                  <div class="mt-4 p-3 rounded-xl flex gap-2.5" style="background:#FEE2E2;border:1.5px solid #DC2626;">
+                    ${icon("x-circle", { size: 16, color: "#DC2626", style: "margin-top:2px;" })}
+                    <p class="text-xs leading-relaxed" style="color:#DC2626;">${escapeHtml(error)}</p>
+                  </div>
+                ` : ""}
+
+                <button data-action="send-otp" ${sending ? "disabled" : ""}
+                  class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 mt-6 disabled:opacity-60"
                   style="background:${C.orange};">
-                  Continue to MFA ${icon("arrow-right", { size: 16 })}
+                  ${sending ? "Sending..." : "Send OTP"} ${icon("arrow-right", { size: 16 })}
                 </button>
+
+                <div class="mt-6 p-4 rounded-xl flex gap-3" style="background:${C.orangeLight};border:1.5px solid ${C.orange}20;">
+                  ${icon("key-round", { size: 16, color: C.orange, style: "margin-top:2px;" })}
+                  <p class="text-xs leading-relaxed" style="color:${C.orange};">
+                    <span class="font-semibold">Authorized access only.</span> Unauthorized access attempts
+                    are logged and reported to SBP compliance. Use your official institutional email.
+                  </p>
+                </div>
               </div>
             ` : `
               <div class="rounded-2xl border p-6 md:p-8" style="border:1.5px solid ${C.border};background:${C.surface};">
@@ -163,24 +201,33 @@ export function render(container) {
                 </div>
 
                 <p class="text-sm mb-6" style="color:${C.textMuted};">
-                  Enter the 6-digit code from your authenticator app or hardware key.
+                  We've sent a 6-digit one-time passcode to <span class="font-semibold" style="color:${C.text};">${escapeHtml(email || "your registered email")}</span>.
                 </p>
 
                 <div class="flex justify-center gap-3 mb-8">
                   ${[0, 1, 2, 3, 4, 5].map((i) => `
-                    <input data-otp-idx="${i}" id="mfa-${i}" type="text" maxlength="1"
+                    <input data-otp-idx="${i}" id="sbp-otp-${i}" type="text" maxlength="1"
                       class="w-12 h-14 text-center text-xl font-bold rounded-xl border-2 outline-none otp-input"
                       style="border:2px solid ${C.border};color:${C.text};background:${C.surface};font-family:var(--font-mono);" />
                   `).join("")}
                 </div>
 
-                <button data-action="mfa"
-                  class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90"
+                ${error ? `
+                  <div class="mb-4 p-3 rounded-xl flex gap-2.5" style="background:#FEE2E2;border:1.5px solid #DC2626;">
+                    ${icon("x-circle", { size: 16, color: "#DC2626", style: "margin-top:2px;" })}
+                    <p class="text-xs leading-relaxed" style="color:#DC2626;">${escapeHtml(error)}</p>
+                  </div>
+                ` : ""}
+
+                <button data-action="verify" ${verifying ? "disabled" : ""}
+                  class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:opacity-90 disabled:opacity-60"
                   style="background:${C.orange};">
-                  Verify & Enter Admin Portal ${icon("arrow-right", { size: 16 })}
+                  ${verifying ? "Verifying..." : "Verify & Enter Admin Portal"} ${icon("arrow-right", { size: 16 })}
                 </button>
 
-                <button data-action="back-to-credentials" class="w-full mt-3 text-sm py-2" style="color:${C.textMuted};">
+                <button data-action="resend" class="w-full mt-3 text-xs font-medium" style="color:${C.orange};">Resend OTP</button>
+
+                <button data-action="back-to-credentials" class="w-full mt-1 text-sm py-2" style="color:${C.textMuted};">
                   ← Back to credentials
                 </button>
               </div>
@@ -198,45 +245,30 @@ export function render(container) {
   function wireEvents() {
     qsa("[data-nav-home]", container).forEach((btn) => btn.addEventListener("click", () => navigate("/")));
 
-    const credBtn = qs('[data-action="credentials"]', container);
-    if (credBtn) credBtn.addEventListener("click", handleCredentials);
+    const sendOtpBtn = qs('[data-action="send-otp"]', container);
+    if (sendOtpBtn) sendOtpBtn.addEventListener("click", handleSendOtp);
 
-    const mfaBtn = qs('[data-action="mfa"]', container);
-    if (mfaBtn) mfaBtn.addEventListener("click", handleMfa);
+    const verifyBtn = qs('[data-action="verify"]', container);
+    if (verifyBtn) verifyBtn.addEventListener("click", handleVerify);
 
     const backBtn = qs('[data-action="back-to-credentials"]', container);
-    if (backBtn) backBtn.addEventListener("click", () => { step = "credentials"; renderAll(); });
+    if (backBtn) backBtn.addEventListener("click", () => { step = "credentials"; error = ""; renderAll(); });
+
+    const resendBtn = qs('[data-action="resend"]', container);
+    if (resendBtn) resendBtn.addEventListener("click", handleSendOtp);
 
     const emailInput = qs('[data-field="email"]', container);
     if (emailInput) emailInput.addEventListener("input", (e) => { email = e.target.value; });
 
-    const passwordInput = qs('[data-field="password"]', container);
-    if (passwordInput) passwordInput.addEventListener("input", (e) => { password = e.target.value; });
-
-    const adminKeyInput = qs('[data-field="adminKey"]', container);
-    if (adminKeyInput) adminKeyInput.addEventListener("input", (e) => { adminKey = e.target.value; });
-
-    const toggleBtn = qs("[data-toggle-password]", container);
-    if (toggleBtn) {
-      toggleBtn.addEventListener("click", () => {
-        showPass = !showPass;
-        const input = qs('[data-field="password"]', container);
-        input.type = showPass ? "text" : "password";
-        toggleBtn.innerHTML = icon(showPass ? "eye-off" : "eye", { size: 16 });
-        hydrateIcons();
-      });
-    }
-
-    // MFA boxes are uncontrolled in the source (no `value` prop) — `mfaCode` is
-    // built by string concatenation on every keystroke across any box,
-    // regardless of index, and is never cleared on delete. Replicated exactly.
+    // OTP boxes are uncontrolled (no `value` prop) - otp is built by string concatenation on
+    // every keystroke across any box, same convention as js/pages/bank/auth.js's own OTP boxes.
     qsa("[data-otp-idx]", container).forEach((input) => {
       input.addEventListener("input", (e) => {
         const idx = parseInt(input.getAttribute("data-otp-idx"), 10);
         const val = e.target.value;
-        mfaCode += val;
+        otp += val;
         if (val) {
-          const next = document.getElementById(`mfa-${idx + 1}`);
+          const next = document.getElementById(`sbp-otp-${idx + 1}`);
           if (next) next.focus();
         }
       });

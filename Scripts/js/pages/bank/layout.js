@@ -9,6 +9,7 @@ import { state, subscribe, setUser } from "../../state.js";
 import { C } from "../../colors.js";
 import { navigate } from "../../router.js";
 import { icon, hydrateIcons, wireImageFallbacks, openModal, qs, qsa } from "../../utils.js";
+import * as api from "../../api.js";
 import { render as renderBankPortal } from "./portal.js";
 
 const NAV = [
@@ -143,7 +144,7 @@ export function mount(container) {
         </div>
 
         <div class="px-3 py-2 mx-3 mt-3 rounded-xl" style="background:${C.blueLight};border:1px solid ${C.blue}25;">
-          <div class="text-xs font-semibold" style="color:${C.blue};">HBL — SME Finance</div>
+          <div class="text-xs font-semibold" style="color:${C.blue};">${state.user?.bankName ?? "Bank"} — SME Finance</div>
           <div class="text-xs" style="color:${C.textMuted};">Karachi Region</div>
         </div>
 
@@ -228,7 +229,13 @@ export function mount(container) {
         renderShell();
       });
     });
-    qsa("[data-signout]", container).forEach((btn) => btn.addEventListener("click", () => navigate("/")));
+    // Was a pure client-side navigate("/") with no real logout call at all - the ASP.NET auth
+    // cookie stayed valid, so "signing out" here didn't actually end the session server-side.
+    // Reuses the exact same /api/account/logout the SME side already calls.
+    qsa("[data-signout]", container).forEach((btn) => btn.addEventListener("click", async () => {
+      await api.logout();
+      window.location.href = "/";
+    }));
     qsa("[data-close-sidebar]", container).forEach((el) => el.addEventListener("click", () => { sidebarOpen = false; renderShell(); }));
     qsa("[data-open-sidebar]", container).forEach((btn) => btn.addEventListener("click", () => { sidebarOpen = true; renderShell(); }));
     qsa("[data-open-settings]", container).forEach((btn) => btn.addEventListener("click", openSettingsModal));

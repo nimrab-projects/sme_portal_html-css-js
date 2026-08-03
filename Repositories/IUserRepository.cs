@@ -32,5 +32,14 @@ namespace SmePortal.Web.Repositories
         Task MarkFirstLoginCompleteAsync(int userId);
 
         Task SaveChangesAsync();
+
+        // SBP Admin Portal sync (Phase 3 - User Management) - the one place system-wide,
+        // unscoped user access is legitimate, same reasoning as
+        // IApplicationRepository.GetAllAsync() added for the Dashboard/Applications pages.
+        Task<List<ApplicationUser>> GetAllAsync();
+
+        // Bulk role lookup (UserId -> role names) for the whole system in one query - avoids
+        // calling GetRoleNamesAsync in a loop (N+1) when rendering the full user list.
+        Task<Dictionary<int, List<string>>> GetAllUserRoleNamesAsync();
     }
 }

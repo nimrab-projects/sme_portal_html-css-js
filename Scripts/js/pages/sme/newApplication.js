@@ -474,7 +474,21 @@ function openUndertakingModal() {
           return;
         }
 
-        addApplication(result.application, docs.filter((d) => d.file).map((d) => ({ label: d.label, fileName: d.file.name, fileUrl: d.fileUrl })));
+        // This Documents step only ever attached files in browser memory (docs[i].file) - no
+        // upload endpoint call happened until now. Persisting them here, against the
+        // just-created application's real id, is what makes the files the applicant just saw
+        // "attached" in this wizard actually exist in the database - the same
+        // /api/applications/{id}/documents endpoint Application Details' own upload UI uses, so
+        // there is exactly one upload code path, not a second one. Best-effort: an application
+        // is already successfully submitted at this point, so one file failing to upload must
+        // not block navigation - the applicant can always add/replace it from Application
+        // Details afterward.
+        const filesToUpload = docs.filter((d) => d.file);
+        await Promise.all(
+          filesToUpload.map((d) => api.uploadApplicationDocument(result.application.id, d.label, d.file))
+        );
+
+        addApplication(result.application, filesToUpload.map((d) => ({ label: d.label, fileName: d.file.name, fileUrl: d.fileUrl })));
         close();
         navigate("/sme/success");
       });

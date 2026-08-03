@@ -21,6 +21,8 @@ namespace SmePortal.Web.DAL
         public DbSet<ApplicationStatusHistory> ApplicationStatusHistories { get; set; }
         public DbSet<ApplicationDocument> ApplicationDocuments { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<Bank> Banks { get; set; }
+        public DbSet<ReportHistory> ReportHistories { get; set; }
 
         public static ApplicationDbContext Create()
         {
@@ -82,6 +84,27 @@ namespace SmePortal.Web.DAL
                 .WithMany()
                 .HasForeignKey(n => n.UserId)
                 .WillCascadeOnDelete(true);
+
+            // SBP Admin Bank Management - prevents duplicate bank names/codes at the DB level as
+            // a backstop for Services/BankService.cs's own application-layer checks.
+            modelBuilder.Entity<Bank>()
+                .Property(b => b.Name)
+                .HasColumnAnnotation(IndexAnnotation.AnnotationName,
+                    new IndexAnnotation(new IndexAttribute("IX_Banks_Name") { IsUnique = true }));
+            modelBuilder.Entity<Bank>()
+                .Property(b => b.Code)
+                .HasColumnAnnotation(IndexAnnotation.AnnotationName,
+                    new IndexAnnotation(new IndexAttribute("IX_Banks_Code") { IsUnique = true }));
+
+            // SBP Admin Reports - an audit trail, not cascade-deleted with its generating admin
+            // (there is no user-delete feature anywhere in this app - users are only ever
+            // blocked/deactivated, never deleted - but explicit here regardless, same reasoning
+            // as every other FK-to-Users relationship in this file).
+            modelBuilder.Entity<ReportHistory>()
+                .HasRequired(h => h.GeneratedByUser)
+                .WithMany()
+                .HasForeignKey(h => h.GeneratedByUserId)
+                .WillCascadeOnDelete(false);
         }
     }
 }

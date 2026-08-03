@@ -21,5 +21,15 @@ namespace SmePortal.Web.Repositories
         Task DeleteAsync(Models.ApplicationDocument document);
 
         Task SaveChangesAsync();
+
+        // Phase 13 (Bank Portal) - backs the Bank Dashboard's "Documents Pending" stat: how many
+        // uploaded documents, across all of this bank's assigned applications, are still
+        // awaiting a Verify/Reject decision.
+        Task<int> CountPendingByApplicationIdsAsync(IEnumerable<int> applicationIds);
+
+        // SBP Admin Portal sync - same pending-document count as above, but broken down per
+        // application so a caller (SbpAdminService) can re-group it per bank without a second,
+        // duplicate query per bank.
+        Task<Dictionary<int, int>> GetPendingCountsByApplicationIdAsync(IEnumerable<int> applicationIds);
     }
 }

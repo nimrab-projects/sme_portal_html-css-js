@@ -8,7 +8,7 @@
 import { state } from "../../state.js";
 import { C } from "../../colors.js";
 import { navigate } from "../../router.js";
-import { icon, hydrateIcons, wireImageFallbacks, escapeHtml, qs, qsa } from "../../utils.js";
+import { icon, hydrateIcons, wireImageFallbacks, escapeHtml, qs, qsa, matchesSearch } from "../../utils.js";
 import * as api from "../../api.js";
 
 // The existing, established status vocabulary (dashboard.js/myApplications.js's STATUS_CONFIG) -
@@ -70,10 +70,36 @@ function emptyStateHtml(message) {
 
 export function render(container, params) {
   const requestedId = params && params.id;
-  const effectiveId = requestedId || state.applications[0]?.id;
+  // Bare "/sme/tracking" (no id, e.g. the sidebar's own nav link) falls back to the applicant's
+  // most recent application - but it must fall back within whichever business is currently
+  // active in the header switcher (same scoping dashboard.js already uses for its own stat
+  // cards/Recent Applications), not the single most recent application across every business
+  // the applicant owns. Without this, switching businesses here did nothing: state.applications
+  // is one flat, cross-business list ordered most-recent-first, so state.applications[0] always
+  // resolved to the same one application regardless of which business was selected.
+  const selectedBusiness = state.selectedBusiness;
+  const viewAllBusinesses = state.viewAllBusinesses;
+  const scopedApplications = selectedBusiness && !viewAllBusinesses
+    ? state.applications.filter((a) => a.businessId === selectedBusiness.id)
+    : state.applications;
+
+  // Header's global search bar (layout.js) - this page shows exactly one application at a time
+  // rather than a list, so "search applications by reference number, business name, scheme, or
+  // bank" means picking which one to display, not filtering a visible list. Only applies to the
+  // bare fallback (no explicit requestedId) - an explicit deep link (e.g. from a notification)
+  // always stays pinned to that exact application regardless of an unrelated search query.
+  const searchQuery = state.globalSearchQuery;
+  const matchingApplications = !requestedId && searchQuery.trim()
+    ? scopedApplications.filter((a) => matchesSearch(searchQuery, a.caseId, a.businessName, a.scheme, a.bank))
+    : scopedApplications;
+  const effectiveId = requestedId || matchingApplications[0]?.id;
 
   if (!effectiveId) {
-    container.innerHTML = emptyStateHtml("You have no applications to track yet.");
+    container.innerHTML = emptyStateHtml(
+      !requestedId && searchQuery.trim() && scopedApplications.length > 0
+        ? "No applications match your search."
+        : "You have no applications to track yet."
+    );
     return;
   }
 
@@ -211,6 +237,6 @@ function renderTracking(container, app) {
 
 function wireEvents(container, app) {
   qs("[data-back]", container).addEventListener("click", () => navigate("/sme"));
-  qs("[data-view-offer]", container).addEventListener("click", () => navigate("/sme/offer"));
+  qs("[data-view-offer]", container).addEventListener("click", () => navigate(`/sme/offer/${app.id}`));
   qs("[data-details]", container)?.addEventListener("click", () => navigate(`/sme/application-details/${app.id}`));
 }

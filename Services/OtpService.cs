@@ -31,6 +31,9 @@ namespace SmePortal.Web.Services
                 UserId = userId,
                 Purpose = purpose,
                 OtpCodeHash = _hasher.HashPassword(code),
+                // Dev-only visibility (see EmailOtp.cs's own comment) - verification below still
+                // only ever checks OtpCodeHash, never this column.
+                OtpCode = code,
                 ExpiresOn = DateTime.UtcNow.AddMinutes(expiryMinutes),
                 IsUsed = false,
                 Attempts = 0,

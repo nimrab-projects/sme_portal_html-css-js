@@ -35,8 +35,10 @@ const DOC_STATUS_CONFIG = {
 
 // Applications at/after these statuses are locked server-side too (Services/DocumentService.cs)
 // - kept in sync here purely so the Replace/Delete buttons can be disabled up front instead of
-// only failing after a round trip.
-const DOCUMENT_LOCKED_STATUSES = ["under_review", "approved", "rejected", "disbursed"];
+// only failing after a round trip. "under_review" is NOT locked: a new application starts there
+// immediately on submission, and the real document upload only happens post-submission from this
+// page, so applicants must still be able to manage documents while under review.
+const DOCUMENT_LOCKED_STATUSES = ["approved", "rejected", "disbursed"];
 
 function statusBadge(status) {
   const cfg = STATUS_CONFIG[status] || { label: status || "Unknown", color: "#6B7280", bg: "#F3F4F6" };
@@ -330,7 +332,19 @@ export function render(container, params) {
     app = result.application;
 
     const docsResult = await api.listApplicationDocuments(applicationId);
-    documents = (docsResult && docsResult.documents) || [];
+    // request()'s success path returns the server's raw JSON ({documents:[...]}, no "success"
+    // key at all - see Controllers/DocumentController.cs's List action); its failure path
+    // returns {success:false, error}. A failed fetch (network hiccup, a transient 404) must
+    // never be silently treated as "this application has no documents" - that would show the
+    // same empty Upload prompts as a genuinely undocumented application, hiding a real error
+    // behind a misleading blank state. Only a real, successful (even if empty) array means
+    // "no documents yet".
+    if (docsResult && Array.isArray(docsResult.documents)) {
+      documents = docsResult.documents;
+    } else {
+      documents = [];
+      docError = "Couldn't load this application's uploaded documents. Please refresh the page and try again.";
+    }
 
     loading = false;
     renderAll();

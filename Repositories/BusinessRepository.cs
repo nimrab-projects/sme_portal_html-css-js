@@ -68,5 +68,10 @@ namespace SmePortal.Web.Repositories
 
             await _db.SaveChangesAsync();
         }
+
+        public async Task<List<Business>> GetAllAsync()
+        {
+            return await _db.Businesses.ToListAsync();
+        }
     }
 }

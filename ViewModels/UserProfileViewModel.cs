@@ -17,5 +17,10 @@ namespace SmePortal.Web.ViewModels
         public string RegistrationDate { get; set; }
         public string LastLogin { get; set; }
         public string AccountStatus { get; set; }
+
+        // Admin Profile (SBP Admin Portal) - additive fields, ignored by pages that don't render
+        // them (Applicant Portal's own Profile page reads this same endpoint).
+        public string Department { get; set; }
+        public string ProfilePictureUrl { get; set; }
     }
 }

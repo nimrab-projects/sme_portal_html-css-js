@@ -27,7 +27,7 @@ namespace SmePortal.Web.Controllers
         private IBusinessService BusinessServiceInstance => new BusinessService(new BusinessRepository(Db), UserRepository, NotificationService, new ApplicationRepository(Db));
         private IAuthService AuthService => new AuthService(UserRepository, BusinessServiceInstance);
         private IOtpService OtpService => new OtpService(new OtpRepository(Db));
-        private IAuditService AuditService => new AuditService(new AuditLogRepository(Db));
+        private IAuditService AuditService => new AuditService(new AuditLogRepository(Db), UserRepository);
 
         private ApplicationUserManager UserManager => HttpContext.GetOwinContext().GetUserManager<ApplicationUserManager>();
         private ApplicationSignInManager SignInManager => HttpContext.GetOwinContext().Get<ApplicationSignInManager>();
@@ -147,6 +147,21 @@ namespace SmePortal.Web.Controllers
             if (user == null)
                 return JsonCamel(new ApiErrorViewModel { Error = "not_found" });
 
+            // SBP Admin Portal sync (Phase 3) - checked before OTP verification even starts, so
+            // a blocked/deactivated account can't complete sign-in via this path either, same
+            // real gate every other login action now enforces.
+            if (user.IsBlocked || !user.IsActive)
+            {
+                await AuditService.LogAsync(user.Id, user.IsBlocked ? "LoginBlockedAccount" : "LoginInactiveAccount", Request);
+                return JsonCamel(new ApiErrorViewModel
+                {
+                    Error = user.IsBlocked ? "account_blocked" : "account_inactive",
+                    Message = user.IsBlocked
+                        ? "This account has been blocked. Please contact SBP support."
+                        : "This account is inactive. Please contact SBP support.",
+                });
+            }
+
             var verification = await OtpService.VerifyOtpAsync(user.Id, model.Otp);
             if (!verification.Success)
                 return JsonCamel(new ApiErrorViewModel { Error = verification.Error });
@@ -183,6 +198,23 @@ namespace SmePortal.Web.Controllers
             if (model == null || string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password))
                 return JsonCamel(new ApiErrorViewModel { Error = "missing_fields" });
 
+            // SBP Admin Portal sync (Phase 3) - checked before password verification even runs,
+            // so a blocked/deactivated account never authenticates here regardless of a correct
+            // password, and never counts against Identity's own brute-force lockout counter for
+            // an account that's already been shut out by an admin action.
+            var existingUser = await UserManager.FindByEmailAsync(model.Email);
+            if (existingUser != null && (existingUser.IsBlocked || !existingUser.IsActive))
+            {
+                await AuditService.LogAsync(existingUser.Id, existingUser.IsBlocked ? "LoginBlockedAccount" : "LoginInactiveAccount", Request);
+                return JsonCamel(new ApiErrorViewModel
+                {
+                    Error = existingUser.IsBlocked ? "account_blocked" : "account_inactive",
+                    Message = existingUser.IsBlocked
+                        ? "This account has been blocked. Please contact SBP support."
+                        : "This account is inactive. Please contact SBP support.",
+                });
+            }
+
             var status = await SignInManager.PasswordSignInAsync(
                 model.Email, model.Password, model.RememberMe, shouldLockout: true);
 
@@ -212,6 +244,146 @@ namespace SmePortal.Web.Controllers
                     await AuditService.LogAsync(user?.Id, "LoginFailed", Request);
                     return JsonCamel(new ApiErrorViewModel { Error = "invalid_credentials" });
             }
+        }
+
+        // Phase 13 (Bank Portal). Reuses the exact same OtpService/EmailOtp infrastructure
+        // built for registration email-verification - just a different `purpose` string, so
+        // a bank-login OTP and a registration OTP for the same account never validate against
+        // each other. No password field exists anywhere in js/pages/bank/auth.js, so this is
+        // the entire sign-in flow (not a second factor after a password).
+        private const string BankLoginOtpPurpose = "BankLogin";
+
+        [Route("bank-login/request-otp")]
+        [HttpPost]
+        [RateLimit(maxRequests: 10, windowSeconds: 60)]
+        [ValidateAjaxAntiForgeryToken]
+        public async Task<ActionResult> BankLoginRequestOtp(BankLoginRequestOtpViewModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.Email))
+            {
+                return JsonCamel(new ApiErrorViewModel { Error = "missing_fields", Message = "Enter your officer email." });
+            }
+
+            var user = await UserManager.FindByEmailAsync(model.Email);
+            // Same "don't reveal whether an account exists" shape regardless of which check
+            // fails - an unknown email and a real Applicant email typing their own address here
+            // both get the identical generic error (Phase 13's "Applicants must never access
+            // Bank Portal" requirement, enforced at the login boundary too, not just after).
+            if (user == null || user.IsBlocked || !user.IsActive || !await UserManager.IsInRoleAsync(user.Id, "BankOfficer"))
+            {
+                await AuditService.LogAsync(user?.Id, "BankLoginOtpRequestDenied", Request);
+                return JsonCamel(new ApiErrorViewModel { Error = "not_authorized", Message = "This account cannot access the Bank Portal." });
+            }
+
+            var code = await OtpService.GenerateAndStoreOtpAsync(user.Id, BankLoginOtpPurpose);
+            await AuditService.LogAsync(user.Id, "BankLoginOtpRequested", Request);
+
+            var devEcho = string.Equals(
+                System.Configuration.ConfigurationManager.AppSettings["Otp:DevEchoEnabled"], "true",
+                StringComparison.OrdinalIgnoreCase);
+            if (devEcho)
+            {
+                System.Diagnostics.Trace.TraceInformation($"[DEV] Bank login OTP for {user.Email}: {code}");
+            }
+
+            return JsonCamel(new { success = true, devOtp = devEcho ? code : null });
+        }
+
+        [Route("bank-login/verify-otp")]
+        [HttpPost]
+        [ValidateAjaxAntiForgeryToken]
+        public async Task<ActionResult> BankLoginVerifyOtp(VerifyOtpRequestViewModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Otp))
+                return JsonCamel(new ApiErrorViewModel { Error = "missing_fields" });
+
+            var user = await UserManager.FindByEmailAsync(model.Email);
+            if (user == null || user.IsBlocked || !user.IsActive || !await UserManager.IsInRoleAsync(user.Id, "BankOfficer"))
+            {
+                return JsonCamel(new ApiErrorViewModel { Error = "not_authorized", Message = "This account cannot access the Bank Portal." });
+            }
+
+            var verification = await OtpService.VerifyOtpAsync(user.Id, model.Otp, BankLoginOtpPurpose);
+            if (!verification.Success)
+                return JsonCamel(new ApiErrorViewModel { Error = verification.Error });
+
+            user.LastLogin = DateTime.UtcNow;
+            user.UpdatedOn = DateTime.UtcNow;
+            await UserManager.UpdateAsync(user);
+
+            // SignInAsync (via ApplicationUser.GenerateUserIdentityAsync) includes a role claim
+            // for every role this user belongs to - that's what makes
+            // [Authorize(Roles = "BankOfficer")] on BankController/BankApplicationController
+            // actually work, no separate claims-setup needed here.
+            await SignInManager.SignInAsync(user, isPersistent: false, rememberBrowser: false);
+            await AuditService.LogAsync(user.Id, "BankLogin", Request);
+
+            return JsonCamel(new { success = true, user = AuthService.ToUserResponse(user) });
+        }
+
+        // SBP Admin Portal sync. Exact same pattern as the Bank Officer OTP login above - only
+        // the role name and purpose string differ, so a Bank Officer/SBP Admin/registration OTP
+        // for the same account never validate against each other.
+        private const string SbpAdminLoginOtpPurpose = "SbpAdminLogin";
+
+        [Route("sbp-admin-login/request-otp")]
+        [HttpPost]
+        [RateLimit(maxRequests: 10, windowSeconds: 60)]
+        [ValidateAjaxAntiForgeryToken]
+        public async Task<ActionResult> SbpAdminLoginRequestOtp(BankLoginRequestOtpViewModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.Email))
+            {
+                return JsonCamel(new ApiErrorViewModel { Error = "missing_fields", Message = "Enter your official SBP email." });
+            }
+
+            var user = await UserManager.FindByEmailAsync(model.Email);
+            if (user == null || user.IsBlocked || !user.IsActive || !await UserManager.IsInRoleAsync(user.Id, "SbpAdmin"))
+            {
+                await AuditService.LogAsync(user?.Id, "SbpAdminLoginOtpRequestDenied", Request);
+                return JsonCamel(new ApiErrorViewModel { Error = "not_authorized", Message = "This account cannot access the SBP Admin Portal." });
+            }
+
+            var code = await OtpService.GenerateAndStoreOtpAsync(user.Id, SbpAdminLoginOtpPurpose);
+            await AuditService.LogAsync(user.Id, "SbpAdminLoginOtpRequested", Request);
+
+            var devEcho = string.Equals(
+                System.Configuration.ConfigurationManager.AppSettings["Otp:DevEchoEnabled"], "true",
+                StringComparison.OrdinalIgnoreCase);
+            if (devEcho)
+            {
+                System.Diagnostics.Trace.TraceInformation($"[DEV] SBP Admin login OTP for {user.Email}: {code}");
+            }
+
+            return JsonCamel(new { success = true, devOtp = devEcho ? code : null });
+        }
+
+        [Route("sbp-admin-login/verify-otp")]
+        [HttpPost]
+        [ValidateAjaxAntiForgeryToken]
+        public async Task<ActionResult> SbpAdminLoginVerifyOtp(VerifyOtpRequestViewModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Otp))
+                return JsonCamel(new ApiErrorViewModel { Error = "missing_fields" });
+
+            var user = await UserManager.FindByEmailAsync(model.Email);
+            if (user == null || user.IsBlocked || !user.IsActive || !await UserManager.IsInRoleAsync(user.Id, "SbpAdmin"))
+            {
+                return JsonCamel(new ApiErrorViewModel { Error = "not_authorized", Message = "This account cannot access the SBP Admin Portal." });
+            }
+
+            var verification = await OtpService.VerifyOtpAsync(user.Id, model.Otp, SbpAdminLoginOtpPurpose);
+            if (!verification.Success)
+                return JsonCamel(new ApiErrorViewModel { Error = verification.Error });
+
+            user.LastLogin = DateTime.UtcNow;
+            user.UpdatedOn = DateTime.UtcNow;
+            await UserManager.UpdateAsync(user);
+
+            await SignInManager.SignInAsync(user, isPersistent: false, rememberBrowser: false);
+            await AuditService.LogAsync(user.Id, "SbpAdminLogin", Request);
+
+            return JsonCamel(new { success = true, user = AuthService.ToUserResponse(user) });
         }
 
         [Route("google-login")]

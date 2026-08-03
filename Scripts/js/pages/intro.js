@@ -25,7 +25,11 @@ const HERO = {
 const ROLES = [
   {
     id: "sme", title: "SME Applicant", titleUrdu: "درخواست گزار",
-    tagline: "Apply & Track", path: "/sme/login", iconName: "store",
+    // Real MVC page (AccountController.Login()), not a SPA hash route - this page's own
+    // bootstrap (bootstrap/home.js) never starts router.js's hash router, so a plain
+    // navigate() here silently changed the URL hash with nothing on screen reacting to it.
+    // Matches the Hero "Apply Now" button (#hero-cta below), which already does this correctly.
+    tagline: "Apply & Track", path: "/Account/Login", iconName: "store",
     accent: "#22C55E", accentDim: "rgba(34,197,94,0.12)",
     border: "rgba(34,197,94,0.25)",
     features: ["6-step digital wizard", "Multi-business profiles", "Offer acceptance flow"],
@@ -122,7 +126,7 @@ export function render(container) {
             `).join("")}
           </nav>
 
-          <button data-scroll-to="access-portal" class="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold text-white hover:opacity-90 active:scale-[0.97] transition-all flex-shrink-0" style="background:${G.blue};">
+          <button data-login-cta class="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold text-white hover:opacity-90 active:scale-[0.97] transition-all flex-shrink-0" style="background:${G.blue};">
             Login / Sign Up ${icon("arrow-right", { size: 14 })}
           </button>
 
@@ -140,7 +144,7 @@ export function render(container) {
               </button>
             `).join("")}
           </nav>
-          <button data-scroll-to="access-portal" data-close-mobile-nav class="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg text-sm font-bold text-white hover:opacity-90 active:scale-[0.97] transition-all" style="background:${G.blue};">
+          <button data-login-cta data-close-mobile-nav class="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg text-sm font-bold text-white hover:opacity-90 active:scale-[0.97] transition-all" style="background:${G.blue};">
             Login / Sign Up ${icon("arrow-right", { size: 14 })}
           </button>
         </div>
@@ -544,11 +548,23 @@ function wireEvents(container) {
   // Real MVC navigation (Phase 2): the SPA hash router no longer owns top-level routing -
   // Login now lives at a real page, /Account/Login (AccountController.Login()).
   qs("#hero-cta", container).addEventListener("click", () => { window.location.href = "/Account/Login"; });
+  // Header "Login / Sign Up" (desktop + mobile) previously only scrolled down to the role
+  // cards, requiring a second click on "SME Applicant" to actually reach the sign-in/sign-up
+  // form - now goes straight there, same as the Hero CTA above.
+  qsa("[data-login-cta]", container).forEach((btn) => {
+    btn.addEventListener("click", () => { window.location.href = "/Account/Login"; });
+  });
 
   qsa("[data-role-id]", container).forEach((btn) => {
     btn.addEventListener("click", () => {
       setRole(btn.getAttribute("data-role-id"));
-      navigate(btn.getAttribute("data-role-path"));
+      const path = btn.getAttribute("data-role-path");
+      // A real MVC page (e.g. SME's /Account/Login) needs a real browser navigation - this
+      // page's bootstrap (bootstrap/home.js) never starts the SPA hash router, so navigate()
+      // (a hash-only change) would silently do nothing. Bank/SBP don't have a real backend
+      // login page yet, so they keep the original hash-based navigate().
+      if (path.startsWith("/Account")) window.location.href = path;
+      else navigate(path);
     });
   });
 

@@ -14,6 +14,18 @@ export function hydrateIcons() {
   }
 }
 
+// Case-insensitive, leading/trailing-whitespace-trimmed substring match across any number of
+// candidate field values - shared by every page that filters its own list against the header's
+// global search bar (layout.js's state.globalSearchQuery via setGlobalSearchQuery), so every
+// page uses the exact same matching rule instead of each one re-implementing a slightly
+// different one. An empty/whitespace-only query matches everything (clearing the box shows the
+// full list again).
+export function matchesSearch(query, ...values) {
+  const q = (query || "").trim().toLowerCase();
+  if (!q) return true;
+  return values.some((v) => (v ?? "").toString().toLowerCase().includes(q));
+}
+
 export function escapeHtml(str) {
   if (str === null || str === undefined) return "";
   return String(str)

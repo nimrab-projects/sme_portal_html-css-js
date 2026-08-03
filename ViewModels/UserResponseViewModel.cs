@@ -9,5 +9,14 @@ namespace SmePortal.Web.ViewModels
         public string Name { get; set; }
         public string Email { get; set; }
         public string Mobile { get; set; }
+
+        // Phase 13 (Bank Portal) - null for Applicants, set for Bank Officer accounts. Additive:
+        // js/pages/sme/*.js never reads this field, only js/pages/bank/layout.js does (replacing
+        // its previous hardcoded "HBL" bank-name display with the real one).
+        public string BankName { get; set; }
+
+        // Admin Profile (SBP Admin Portal) - carried at boot/login time so the sidebar/header
+        // avatar can show a real uploaded picture immediately, not just after an in-session edit.
+        public string ProfilePictureUrl { get; set; }
     }
 }

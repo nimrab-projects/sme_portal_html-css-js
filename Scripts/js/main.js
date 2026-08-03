@@ -56,7 +56,9 @@ start([
       { path: "apply", render: smeNewApplication.render },
       { path: "success", render: smeApplicationSuccess.render },
       { path: "tracking", render: smeApplicationTracking.render },
+      { path: "tracking/:id", render: smeApplicationTracking.render },
       { path: "offer", render: smeOfferLetter.render },
+      { path: "offer/:id", render: smeOfferLetter.render },
     ],
   },
 

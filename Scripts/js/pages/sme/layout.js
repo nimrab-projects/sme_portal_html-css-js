@@ -1,8 +1,8 @@
 // 1:1 port of src/app/pages/sme/SmeLayout.tsx
-import { state, subscribe, setSelectedBusiness, markNotificationsRead, markOneNotificationRead } from "../../state.js";
+import { state, subscribe, setSelectedBusiness, setViewAllBusinesses, setGlobalSearchQuery, markNotificationsRead, markOneNotificationRead } from "../../state.js";
 import { C } from "../../colors.js";
 import { navigate, getCurrentPath } from "../../router.js";
-import { icon, hydrateIcons, wireImageFallbacks, openModal, qs, qsa } from "../../utils.js";
+import { icon, hydrateIcons, wireImageFallbacks, openModal, qs, qsa, escapeHtml } from "../../utils.js";
 import * as api from "../../api.js";
 
 // Phase 11: the server only returns raw NotificationType/ReferenceType/ReferenceId facts
@@ -138,10 +138,6 @@ export function mount(container) {
           }).join("")}
         </nav>
         <div class="px-3 py-4 border-t" style="border-color:${C.border};">
-          <button data-home class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-left hover:bg-gray-50 mb-1" style="color:${C.text};">
-            <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${C.gold}18;">${icon("home", { size: 16, color: C.gold })}</div>
-            Home Page
-          </button>
           <button data-signout class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-left hover:bg-gray-50" style="color:${C.textMuted};">
             ${icon("log-out", { size: 16 })}
             Sign Out
@@ -164,6 +160,12 @@ export function mount(container) {
   function renderShell() {
     const unreadCount = state.notifications.filter((n) => !n.read).length;
     const activeNav = NAV.find((n) => isActive(n.path));
+    // My Applications already has its own fully-functional "All Businesses" filter dropdown and
+    // its own search box inside the page's own filter row - the top header switcher/search are
+    // redundant there (and only there). Every other page still gets both; this only ever
+    // suppresses them while the current route is under /sme/applications.
+    const isMyApplicationsPage = isActive("/sme/applications");
+    const hideTopBusinessSwitcher = isMyApplicationsPage;
 
     container.innerHTML = `
       <div class="flex h-screen overflow-hidden" style="font-family:'Manrope',sans-serif;background:${C.bg};">
@@ -182,21 +184,29 @@ export function mount(container) {
               <div class="text-sm font-bold leading-tight" style="color:${C.text};">${activeNav?.label ?? "Dashboard"}</div>
               <div class="text-xs" style="color:${C.textMuted};font-family:var(--font-mono);font-size:10px;">SME Applicant Portal</div>
             </div>
+            ${hideTopBusinessSwitcher ? "" : `
             <div class="relative flex-shrink-0 min-w-0">
               <button data-toggle-biz class="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border text-sm font-medium min-w-0" style="border:1.5px solid ${C.border};color:${C.text};background:${C.bg};">
-                ${icon("building-2", { size: 14, color: C.green })}
-                <span class="max-w-[90px] sm:max-w-[140px] truncate">${state.selectedBusiness?.name ?? ""}</span>
+                ${icon(state.viewAllBusinesses ? "layers" : "building-2", { size: 14, color: C.green })}
+                <span class="max-w-[90px] sm:max-w-[140px] truncate">${state.viewAllBusinesses ? "All Businesses" : (state.selectedBusiness?.name ?? "")}</span>
                 ${icon("chevron-down", { size: 14, color: C.textMuted })}
               </button>
               ${bizDropdown ? `
                 <div class="absolute top-full left-0 mt-1 w-56 max-w-[85vw] rounded-xl border shadow-lg overflow-hidden z-10" style="background:${C.surface};border:1.5px solid ${C.border};">
+                  <button data-view-all-businesses class="w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-gray-50 border-b" style="color:${C.text};border-color:${C.border};background:${state.viewAllBusinesses ? C.greenLight : "transparent"};">
+                    <div class="flex items-center gap-2">
+                      ${icon("layers", { size: 14, color: C.green })}
+                      <span class="font-medium text-xs">All Businesses</span>
+                    </div>
+                    ${state.viewAllBusinesses ? icon("chevron-right", { size: 12, color: C.green }) : ""}
+                  </button>
                   ${state.businesses.map((b) => `
-                    <button data-select-biz="${b.id}" class="w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-gray-50" style="color:${C.text};background:${state.selectedBusiness?.id === b.id ? C.greenLight : "transparent"};">
+                    <button data-select-biz="${b.id}" class="w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-gray-50" style="color:${C.text};background:${!state.viewAllBusinesses && state.selectedBusiness?.id === b.id ? C.greenLight : "transparent"};">
                       <div>
                         <div class="font-medium text-xs">${b.name}</div>
                         <div class="text-xs" style="color:${C.textMuted};">${b.nature}</div>
                       </div>
-                      ${state.selectedBusiness?.id === b.id ? icon("chevron-right", { size: 12, color: C.green }) : ""}
+                      ${!state.viewAllBusinesses && state.selectedBusiness?.id === b.id ? icon("chevron-right", { size: 12, color: C.green }) : ""}
                     </button>
                   `).join("")}
                   <div class="border-t" style="border-color:${C.border};">
@@ -205,11 +215,12 @@ export function mount(container) {
                     </button>
                   </div>
                 </div>` : ""}
-            </div>
+            </div>`}
+            ${isMyApplicationsPage ? "" : `
             <div class="hidden md:flex relative flex-1 min-w-[100px] max-w-xs">
               <span class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">${icon("search", { size: 14, color: C.textMuted })}</span>
-              <input type="text" placeholder="Search applications, businesses..." class="w-full rounded-lg border text-xs outline-none" style="padding:8px 12px 8px 30px;border:1.5px solid ${C.border};background:${C.bg};color:${C.text};" />
-            </div>
+              <input data-global-search type="text" value="${escapeHtml(state.globalSearchQuery)}" placeholder="Search applications, businesses..." class="w-full rounded-lg border text-xs outline-none" style="padding:8px 12px 8px 30px;border:1.5px solid ${C.border};background:${C.bg};color:${C.text};" />
+            </div>`}
             <div class="hidden md:block flex-1"></div>
             <div class="relative flex-shrink-0 ml-auto md:ml-0">
               <button data-toggle-notif class="relative p-2 rounded-lg hover:bg-gray-100" style="color:${C.textMuted};">
@@ -249,10 +260,10 @@ export function mount(container) {
                   </div>
                 </div>` : ""}
             </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
+            <button data-open-profile class="flex items-center gap-2 flex-shrink-0 rounded-lg p-1 -m-1 hover:bg-gray-100">
               <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style="background:${C.green};">${state.user?.name?.[0] ?? "A"}</div>
               <span class="hidden lg:block text-sm font-medium" style="color:${C.text};">${(state.user?.name ?? "User").split(" ")[0]}</span>
-            </div>
+            </button>
           </header>
           <main id="sme-outlet" class="flex-1 overflow-y-auto"></main>
         </div>
@@ -274,9 +285,11 @@ export function mount(container) {
         navigate(btn.getAttribute("data-nav-path"));
       });
     });
-    // Real MVC navigation (Phase 6): these exit the Dashboard shell entirely, unlike the sidebar
+    // Real MVC navigation (Phase 6): exits the Dashboard shell entirely, unlike the sidebar
     // nav items above which switch sub-views within this one page via the internal hash router.
-    qsa("[data-home]", container).forEach((btn) => btn.addEventListener("click", () => { sidebarOpen = false; window.location.href = "/"; }));
+    // The sidebar's own "Home Page" link (data-home) was removed - it sent applicants to the
+    // public marketing homepage, which renders its own "Login / Sign Up" header regardless of
+    // the still-valid session cookie, looking exactly like an unwanted sign-out.
     qsa("[data-signout]", container).forEach((btn) => btn.addEventListener("click", async () => {
       await api.logout();
       window.location.href = "/";
@@ -292,6 +305,13 @@ export function mount(container) {
         renderShell();
       });
     });
+    qsa("[data-view-all-businesses]", container).forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setViewAllBusinesses(true);
+        bizDropdown = false;
+        renderShell();
+      });
+    });
     // Phase 12/13: reuses the exact same "Add Business" destination as My Businesses'
     // own button (myBusinesses.js) - #/sme/business-profile/add, an internal hash route
     // that mounts businessSetup.js in "add" mode (create-mode form, no onboarding panel).
@@ -299,6 +319,25 @@ export function mount(container) {
     // any user who already owns a business straight back to the Dashboard - exactly the
     // case every user opening this dropdown is in, so the button was silently broken.
     qsa("[data-add-business]", container).forEach((btn) => btn.addEventListener("click", () => { bizDropdown = false; navigate("/sme/business-profile/add"); }));
+    // Global search (hidden on My Applications - see isMyApplicationsPage above). Typing here
+    // updates state.globalSearchQuery, which re-renders this whole shell (including the current
+    // outlet page) via the same subscribe(renderShell) -> renderOutlet() chain that already
+    // drives selectedBusiness/viewAllBusinesses-based filtering - each page reads the query
+    // fresh off state and filters its own list, same convention as My Applications' own search
+    // box (myApplications.js), including restoring focus/caret afterward since the whole shell
+    // (not just this input) gets rebuilt on every keystroke.
+    const searchInput = qs("[data-global-search]", container);
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => {
+        const caret = e.target.selectionStart;
+        setGlobalSearchQuery(e.target.value);
+        const newInput = qs("[data-global-search]", container);
+        if (newInput) {
+          newInput.focus();
+          newInput.setSelectionRange(caret, caret);
+        }
+      });
+    }
     qsa("[data-toggle-notif]", container).forEach((btn) => {
       btn.addEventListener("click", () => {
         notifOpen = !notifOpen;

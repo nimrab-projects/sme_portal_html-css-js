@@ -28,6 +28,8 @@ namespace SmePortal.Web.Controllers
         private IBusinessService BusinessService =>
             new BusinessService(new BusinessRepository(Db), new UserRepository(Db), NotificationService, new ApplicationRepository(Db));
 
+        private IAuditService AuditService => new AuditService(new AuditLogRepository(Db), new UserRepository(Db));
+
         private int CurrentUserId => Convert.ToInt32(User.Identity.GetUserId());
 
         // Explicit routes on every page action here (rather than relying on the {controller}/
@@ -122,6 +124,7 @@ namespace SmePortal.Web.Controllers
             try
             {
                 var profile = await UserService.UpdateProfileAsync(CurrentUserId, model);
+                await AuditService.LogAsync(CurrentUserId, "ProfileUpdated", Request);
                 return JsonCamel(new { success = true, profile });
             }
             catch (InvalidOperationException ex)

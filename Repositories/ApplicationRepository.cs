@@ -57,5 +57,30 @@ namespace SmePortal.Web.Repositories
         {
             return _db.Applications.CountAsync(a => a.BusinessId == businessId);
         }
+
+        public async Task<List<Models.Application>> GetByBankNameAsync(string bankName)
+        {
+            if (string.IsNullOrWhiteSpace(bankName)) return new List<Models.Application>();
+
+            return await _db.Applications
+                .Include(a => a.Business)
+                .Include(a => a.Business.User)
+                .Where(a => a.Business.Bank == bankName)
+                .OrderByDescending(a => a.CreatedOn)
+                .ToListAsync();
+        }
+
+        public async Task<List<Models.Application>> GetAllAsync()
+        {
+            // StatusHistory eager-loaded (Reports Phase) so Services/ReportService.cs's
+            // Turnaround Time report can compute real per-stage time deltas from the one bulk
+            // fetch every SBP Admin page already reuses - never a second, per-application query.
+            return await _db.Applications
+                .Include(a => a.Business)
+                .Include(a => a.Business.User)
+                .Include(a => a.StatusHistory)
+                .OrderByDescending(a => a.CreatedOn)
+                .ToListAsync();
+        }
     }
 }

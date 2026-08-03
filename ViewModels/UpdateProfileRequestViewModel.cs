@@ -11,5 +11,9 @@ namespace SmePortal.Web.ViewModels
 
         [Required(ErrorMessage = "Mobile number is required.")]
         public string Mobile { get; set; }
+
+        // Optional (Admin Profile). Null/omitted leaves the existing picture (or lack of one)
+        // unchanged - never required to save a name/phone update.
+        public string ProfilePictureUrl { get; set; }
     }
 }
